@@ -12,7 +12,8 @@
             color: #333;
             display: flex;
             height: 100vh;
-            overflow: hidden; /* Prevent body scroll when sidebar is open */
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            position: relative; /* Needed for sidebar positioning */
         }
 
         /* Sidebar Styles */
@@ -72,6 +73,7 @@
             display: flex;
             flex-direction: column;
             position: relative;
+            width: calc(100% - 250px); /* Account for sidebar width on desktop */
         }
         .container {
             max-width: 800px;
@@ -104,8 +106,8 @@
             display: flex;
             gap: 10px;
             margin-top: 10px;
-            box-sizing: border-box; /* Essential for responsive padding */
-            padding-right: 1px; /* Small adjustment if needed */
+            box-sizing: border-box;
+            width: 100%; /* Ensure it takes full width */
         }
         #message-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         #send-button, #media-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; }
@@ -120,7 +122,7 @@
         .modal {
             display: none; /* Hidden by default */
             position: fixed; /* Stay in place */
-            z-index: 1; /* Sit on top */
+            z-index: 10000; /* Higher z-index to ensure it's always on top */
             left: 0;
             top: 0;
             width: 100%; /* Full width */
@@ -140,6 +142,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             position: relative;
+            box-sizing: border-box; /* Crucial for modals */
         }
         .close-button {
             color: #aaa;
@@ -154,7 +157,7 @@
             cursor: pointer;
         }
         .modal-content input[type="text"], .modal-content textarea {
-            width: calc(100% - 22px); /* Adjusted for padding */
+            width: 100%; /* Make input full width of its parent */
             padding: 10px;
             margin-bottom: 10px;
             border: 1px solid #ddd;
@@ -182,6 +185,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             text-align: center;
+            box-sizing: border-box;
         }
         #join-chat-preview h2 {
             color: #34495e;
@@ -240,40 +244,45 @@
             }
 
             .main-content {
-                padding: 10px; /* Reduce padding for smaller screens */
+                padding: 10px; /* Reduced padding for smaller screens */
                 width: 100%; /* Take full width */
+                box-sizing: border-box; /* Include padding in width calculation */
             }
             .container {
-                padding: 15px;
+                padding: 10px; /* Reduced padding for smaller screens */
                 border-radius: 0; /* Remove border-radius for full width feel */
                 box-shadow: none; /* Remove shadow to blend better */
                 height: 100%; /* Occupy full height */
                 justify-content: space-between; /* Push input to bottom */
+                box-sizing: border-box; /* Include padding in width calculation */
+                max-width: 100%; /* Ensure it doesn't try to be too wide */
             }
 
             #chat-window {
-                height: calc(100vh - 200px); /* Adjust height to fit screen, accounting for headers/input */
+                height: calc(100vh - 180px); /* Adjusted height to fit screen, accounting for headers/input */
                 margin-bottom: 10px;
+                padding: 8px; /* Slightly reduced padding */
             }
 
             .message {
-                max-width: 85%; /* Allow messages to take more width */
+                max-width: 90%; /* Allow messages to take more width */
                 font-size: 0.9em;
+                padding: 6px 10px; /* Slightly reduced padding */
             }
 
             #message-input-area {
                 flex-wrap: wrap; /* Allow items to wrap on smaller screens */
                 gap: 5px; /* Reduce gap */
-                /* Ensure it takes full available width */
-                width: 100%;
-                padding-right: 0; /* Remove any potential right padding */
-                margin-right: 0; /* Remove any potential right margin */
+                width: 100%; /* Ensure it takes full available width */
+                margin: 0; /* Remove any external margins */
+                padding: 0; /* Remove any external paddings */
             }
             #message-input {
                 flex-basis: 100%; /* Take full width */
                 margin-bottom: 5px; /* Space from buttons */
                 width: 100%; /* Ensure width is explicitly 100% */
                 box-sizing: border-box; /* Include padding/border in width */
+                padding: 8px; /* Slightly reduced padding */
             }
             #media-button, #send-button {
                 flex-grow: 1; /* Allow buttons to grow */
@@ -284,20 +293,18 @@
             }
 
             #username-setup, #join-chat-preview {
-                margin: 20px auto; /* Adjust margin for mobile */
-                padding: 20px;
-                width: 90%; /* Make them wider */
+                margin: 15px auto; /* Adjust margin for mobile */
+                padding: 15px;
+                width: 95%; /* Make them wider */
                 max-width: none; /* Override max-width */
             }
 
             .modal-content {
                 width: 95%; /* Make modals almost full screen */
-                margin: 10px;
+                margin: 10px auto; /* Center with auto margins */
                 padding: 15px;
-            }
-            /* Fix for input fields in modal */
-            .modal-content input[type="text"], .modal-content textarea {
-                width: 100%; /* Make input full width of its parent */
+                max-height: 90vh; /* Prevent modal from overflowing tall screens */
+                overflow-y: auto; /* Allow scrolling if content is too long */
             }
         }
     </style>
