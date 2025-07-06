@@ -61,6 +61,7 @@
             border-radius: 5px;
             margin-top: 20px;
             width: 100%;
+            box-sizing: border-box; /* Ensures padding and border are included in the width */
         }
         #create-chat-button:hover { background-color: #218838; }
 
@@ -99,13 +100,19 @@
         .message strong { color: #075e54; }
         .message .timestamp { font-size: 0.75em; color: #777; display: block; text-align: right; margin-top: 5px; }
         .message img, .message video { max-width: 100%; height: auto; border-radius: 5px; margin-top: 5px; display: block; }
-        #message-input-area { display: flex; gap: 10px; margin-top: 10px; /* Adjusted margin */ }
+        #message-input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            box-sizing: border-box; /* Essential for responsive padding */
+            padding-right: 1px; /* Small adjustment if needed */
+        }
         #message-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         #send-button, #media-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; }
         #send-button:hover, #media-button:hover { background-color: #218838; }
         #username-setup { text-align: center; margin-bottom: 20px; }
         #username-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4ppx; cursor: pointer; }
+        #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
         #set-username-button:hover { background-color: #0056b3; }
         .hidden { display: none; }
 
@@ -147,11 +154,12 @@
             cursor: pointer;
         }
         .modal-content input[type="text"], .modal-content textarea {
-            width: calc(100% - 22px);
+            width: calc(100% - 22px); /* Adjusted for padding */
             padding: 10px;
             margin-bottom: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            box-sizing: border-box; /* Crucial for inputs to not overflow */
         }
         .modal-content button {
             background-color: #007bff;
@@ -256,15 +264,23 @@
             #message-input-area {
                 flex-wrap: wrap; /* Allow items to wrap on smaller screens */
                 gap: 5px; /* Reduce gap */
+                /* Ensure it takes full available width */
+                width: 100%;
+                padding-right: 0; /* Remove any potential right padding */
+                margin-right: 0; /* Remove any potential right margin */
             }
             #message-input {
                 flex-basis: 100%; /* Take full width */
                 margin-bottom: 5px; /* Space from buttons */
+                width: 100%; /* Ensure width is explicitly 100% */
+                box-sizing: border-box; /* Include padding/border in width */
             }
             #media-button, #send-button {
                 flex-grow: 1; /* Allow buttons to grow */
                 padding: 8px 10px; /* Adjust button padding */
                 font-size: 0.9em;
+                min-width: unset; /* Remove any min-width that might cause overflow */
+                box-sizing: border-box;
             }
 
             #username-setup, #join-chat-preview {
@@ -278,6 +294,10 @@
                 width: 95%; /* Make modals almost full screen */
                 margin: 10px;
                 padding: 15px;
+            }
+            /* Fix for input fields in modal */
+            .modal-content input[type="text"], .modal-content textarea {
+                width: 100%; /* Make input full width of its parent */
             }
         }
     </style>
