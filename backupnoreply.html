@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChatNow">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatNow - Chats</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            position: relative; /* Needed for sidebar positioning */
+        }
+
+        /* Sidebar Styles */
+        #sidebar {
+            width: 250px;
+            background-color: #2c3e50; /* Dark blue/grey */
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1000;
+            transition: transform 0.3s ease-in-out;
+        }
+        #sidebar.hidden {
+            transform: translateX(-100%);
+            position: absolute; /* Hide completely when collapsed */
+        }
+        #sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            left: calc(100% + 10px); /* Position outside sidebar */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 1001; /* Ensure it's above other content */
+        }
+        #sidebar-toggle.active {
+            background-color: #dc3545; /* Red when open, indicating "close" */
+        }
+        #sidebar h3 { margin-top: 0; color: #ecf0f1; }
+        #chat-list { list-style: none; padding: 0; flex-grow: 1; overflow-y: auto; }
+        #chat-list li { margin-bottom: 10px; cursor: pointer; padding: 8px; border-radius: 4px; transition: background-color 0.2s; }
+        #chat-list li:hover { background-color: #34495e; }
+        #chat-list li.active { background-color: #007bff; font-weight: bold; }
+        #create-chat-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+            width: 100%;
+            box-sizing: border-box; /* Ensures padding and border are included in the width */
+        }
+        #create-chat-button:hover { background-color: #218838; }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            width: calc(100% - 250px); /* Account for sidebar width on desktop */
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat-window {
+            border: 1px solid #ddd;
+            height: 400px; /* Fixed height for scroll */
+            flex-grow: 1; /* Allow it to grow in the column flex */
+            overflow-y: scroll;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 15px; max-width: 70%; word-wrap: break-word; }
+        .message.sent { background-color: #dcf8c6; float: right; clear: both; }
+        .message.received { background-color: #ffffff; float: left; clear: both; border: 1px solid #eee; }
+        .message strong { color: #075e54; }
+        .message .timestamp { font-size: 0.75em; color: #777; display: block; text-align: right; margin-top: 5px; }
+        .message img, .message video { max-width: 100%; height: auto; border-radius: 5px; margin-top: 5px; display: block; }
+        #message-input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            box-sizing: border-box;
+            width: 100%; /* Ensure it takes full width */
+        }
+        #message-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        #send-button, #media-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; }
+        #send-button:hover, #media-button:hover { background-color: #218838; }
+        #username-setup { text-align: center; margin-bottom: 20px; }
+        #username-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        #set-username-button:hover { background-color: #0056b3; }
+        .hidden { display: none; }
+
+        /* Modal for Create Chat */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 10000; /* Higher z-index to ensure it's always on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+            box-sizing: border-box; /* Crucial for modals */
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-content input[type="text"], .modal-content textarea {
+            width: 100%; /* Make input full width of its parent */
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box; /* Crucial for inputs to not overflow */
+        }
+        .modal-content button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .modal-content button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Join Chat Preview UI */
+        #join-chat-preview {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #join-chat-preview h2 {
+            color: #34495e;
+            margin-bottom: 10px;
+        }
+        #join-chat-preview p {
+            color: #555;
+            margin-bottom: 20px;
+        }
+        #join-chat-preview button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+        #join-chat-preview button:hover {
+            background-color: #0056b3;
+        }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column; /* Stack elements vertically */
+            }
+
+            #sidebar {
+                position: fixed; /* Make sidebar fixed to overlay content */
+                top: 0;
+                left: 0;
+                width: 75%; /* Occupy most of the screen width */
+                height: 100vh;
+                padding: 15px;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+                transform: translateX(-100%); /* Start hidden */
+            }
+            #sidebar.hidden {
+                transform: translateX(-100%); /* Keep hidden state */
+            }
+            #sidebar.active { /* Use 'active' class to show sidebar */
+                transform: translateX(0);
+            }
+
+            #sidebar-toggle {
+                position: fixed; /* Fixed position for toggle button */
+                top: 15px;
+                left: 15px; /* Position inside main content area */
+                z-index: 1002; /* Above sidebar */
+                padding: 8px 12px;
+            }
+            #sidebar-toggle.active {
+                left: calc(75% + 15px); /* Move toggle when sidebar is open */
+                background-color: #dc3545; /* Red to indicate "close" */
+            }
+
+            .main-content {
+                padding: 10px; /* Reduced padding for smaller screens */
+                width: 100%; /* Take full width */
+                box-sizing: border-box; /* Include padding in width calculation */
+            }
+            .container {
+                padding: 10px; /* Reduced padding for smaller screens */
+                border-radius: 0; /* Remove border-radius for full width feel */
+                box-shadow: none; /* Remove shadow to blend better */
+                height: 100%; /* Occupy full height */
+                justify-content: space-between; /* Push input to bottom */
+                box-sizing: border-box; /* Include padding in width calculation */
+                max-width: 100%; /* Ensure it doesn't try to be too wide */
+            }
+
+            #chat-window {
+                height: calc(100vh - 180px); /* Adjusted height to fit screen, accounting for headers/input */
+                margin-bottom: 10px;
+                padding: 8px; /* Slightly reduced padding */
+            }
+
+            .message {
+                max-width: 90%; /* Allow messages to take more width */
+                font-size: 0.9em;
+                padding: 6px 10px; /* Slightly reduced padding */
+            }
+
+            #message-input-area {
+                flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+                gap: 5px; /* Reduce gap */
+                width: 100%; /* Ensure it takes full available width */
+                margin: 0; /* Remove any external margins */
+                padding: 0; /* Remove any external paddings */
+            }
+            #message-input {
+                flex-basis: 100%; /* Take full width */
+                margin-bottom: 5px; /* Space from buttons */
+                width: 100%; /* Ensure width is explicitly 100% */
+                box-sizing: border-box; /* Include padding/border in width */
+                padding: 8px; /* Slightly reduced padding */
+            }
+            #media-button, #send-button {
+                flex-grow: 1; /* Allow buttons to grow */
+                padding: 8px 10px; /* Adjust button padding */
+                font-size: 0.9em;
+                min-width: unset; /* Remove any min-width that might cause overflow */
+                box-sizing: border-box;
+            }
+
+            #username-setup, #join-chat-preview {
+                margin: 15px auto; /* Adjust margin for mobile */
+                padding: 15px;
+                width: 95%; /* Make them wider */
+                max-width: none; /* Override max-width */
+            }
+
+            .modal-content {
+                width: 95%; /* Make modals almost full screen */
+                margin: 10px auto; /* Center with auto margins */
+                padding: 15px;
+                max-height: 90vh; /* Prevent modal from overflowing tall screens */
+                overflow-y: auto; /* Allow scrolling if content is too long */
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="sidebar-toggle">Toggle Sidebar</button>
+
+    <div id="sidebar" class="hidden">
+        <h3>Your Group Chats (<span id="chat-count">0</span>)</h3>
+        <ul id="chat-list">
+            </ul>
+        <button id="create-chat-button">Create New Chat</button>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <h1>Welcome to Your Group Chat!</h1>
+
+            <div id="username-setup">
+                <p>Please enter your desired username:</p>
+                <input type="text" id="username-input" placeholder="Your username">
+                <button id="set-username-button">Set Username</button>
+            </div>
+
+            <div id="join-chat-preview" class="hidden">
+                <h2>Join "<span id="join-chat-name"></span>"?</h2>
+                <p id="join-chat-description"></p>
+                <button id="join-chat-button">Join Chat</button>
+                <div id="join-chat-status" style="color: red; margin-top: 10px;"></div>
+            </div>
+
+            <div id="chat-interface" class="hidden">
+                <h2 id="chat-name"></h2>
+                <div id="chat-window">
+                    </div>
+                <div id="message-input-area">
+                    <input type="text" id="message-input" placeholder="Type your message...">
+                    <input type="file" id="media-upload" accept="image/*,video/*" class="hidden">
+                    <button id="media-button">Attach Media</button>
+                    <button id="send-button">Send</button>
+                </div>
+                <div id="status-message" style="color: red; margin-top: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-chat-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Create New Group Chat</h2>
+            <input type="text" id="new-chat-name" placeholder="Chat Name" required>
+            <textarea id="new-chat-description" placeholder="Description (optional)"></textarea>
+            <button id="submit-create-chat">Create Chat</button>
+            <div id="create-chat-status" style="color: red; margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import createClient directly from Supabase JS module
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+        // Supabase client instance
+        // It's defined within the module scope
+        const supabase = createClient(
+            'https://ahsrsrkzmphbhecishuc.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
+        );
+        console.log("Supabase client initialized via module import.");
+
+        // --- DOM Elements ---
+        const usernameSetupDiv = document.getElementById('username-setup');
+        const usernameInput = document.getElementById('username-input');
+        const setUsernameButton = document.getElementById('set-username-button');
+        const chatInterfaceDiv = document.getElementById('chat-interface');
+        const chatNameElement = document.getElementById('chat-name');
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const mediaUploadInput = document.getElementById('media-upload');
+        const mediaButton = document.getElementById('media-button');
+        const sendButton = document.getElementById('send-button');
+        const statusMessageDiv = document.getElementById('status-message');
+
+        // Sidebar elements
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const chatCountSpan = document.getElementById('chat-count');
+        const chatList = document.getElementById('chat-list');
+        const createChatButton = document.getElementById('create-chat-button');
+
+        // Create Chat Modal elements
+        const createChatModal = document.getElementById('create-chat-modal');
+        const closeButton = createChatModal.querySelector('.close-button');
+        const newChatNameInput = document.getElementById('new-chat-name');
+        const newChatDescriptionInput = document.getElementById('new-chat-description');
+        const submitCreateChatButton = document.getElementById('submit-create-chat');
+        const createChatStatusDiv = document.getElementById('create-chat-status');
+
+        // New Join Chat Preview UI elements
+        const joinChatPreviewDiv = document.getElementById('join-chat-preview');
+        const joinChatPreviewName = document.getElementById('join-chat-name');
+        const joinChatPreviewDescription = document.getElementById('join-chat-description');
+        const joinChatPreviewButton = document.getElementById('join-chat-button');
+        const joinChatStatusDiv = document.getElementById('join-chat-status');
+
+
+        // --- Global Variables (for client-side user and chat data) ---
+        let localUserId = localStorage.getItem('localUserId');
+        let username = localStorage.getItem('username');
+        let currentChatId = null; // Will be set when a chat is selected/created
+        let realtimeSubscription = null; // To manage the real-time subscription
+
+        // --- Helper Functions ---
+
+        /**
+         * Generates a UUID (v4) for client-side user identification.
+         * @returns {string} A new UUID string.
+         */
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        /**
+         * Displays a message in the chat window.
+         * @param {object} messageData - The message object from Supabase.
+         */
+        function displayMessage(messageData) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+
+            const isSender = (messageData.sender_local_user_id === localUserId);
+            messageElement.classList.add(isSender ? 'sent' : 'received');
+
+            const senderNameStrong = document.createElement('strong');
+            senderNameStrong.textContent = `${messageData.sender_name}: `;
+            messageElement.appendChild(senderNameStrong);
+
+            if (messageData.content) {
+                const contentSpan = document.createElement('span');
+                contentSpan.textContent = messageData.content;
+                messageElement.appendChild(contentSpan);
+            }
+
+            if (messageData.media_url) {
+                const mediaElement = document.createElement(messageData.media_type.startsWith('image') ? 'img' : 'video');
+                mediaElement.src = messageData.media_url;
+                mediaElement.alt = 'Shared Media';
+                if (messageData.media_type.startsWith('video')) {
+                    mediaElement.controls = true;
+                }
+                messageElement.appendChild(mediaElement);
+            }
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.classList.add('timestamp');
+            timestampSpan.textContent = new Date(messageData.created_at).toLocaleTimeString();
+            messageElement.appendChild(timestampSpan);
+
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to bottom
+        }
+
+        /**
+         * Loads initial messages for the current chat.
+         */
+        async function loadMessages(chatId) {
+            if (!chatId) {
+                chatWindow.innerHTML = '<p>Select a chat or create a new one.</p>';
+                return;
+            }
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('chat_id', chatId)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Error loading messages:', error.message);
+                statusMessageDiv.textContent = `Error loading messages: ${error.message}`;
+            } else {
+                chatWindow.innerHTML = ''; // Clear existing messages
+                data.forEach(displayMessage);
+            }
+        }
+
+        /**
+         * Subscribes to real-time changes in the messages table for the current chat.
+         */
+        function subscribeToMessages(chatId) {
+            if (realtimeSubscription) {
+                supabase.removeChannel(realtimeSubscription); // Unsubscribe from previous channel
+            }
+
+            if (!chatId) return; // Don't subscribe if no chat is selected
+
+            realtimeSubscription = supabase
+                .channel(`chat_room_${chatId}`) // Unique channel per chat
+                .on(
+                    'postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+                    (payload) => {
+                        console.log('New message received!', payload.new);
+                        displayMessage(payload.new);
+                    }
+                )
+                .subscribe();
+        }
+
+        /**
+         * Handles sending a new message (text or media).
+         */
+        async function sendMessage() {
+            if (!localUserId || !username) {
+                statusMessageDiv.textContent = 'Please set your username first.';
+                return;
+            }
+            if (!currentChatId) {
+                statusMessageDiv.textContent = 'Please select or create a chat first.';
+                return;
+            }
+
+            let messageContent = messageInput.value.trim();
+            let mediaUrl = null;
+            let mediaType = null;
+            const file = mediaUploadInput.files[0];
+
+            if (file) {
+                statusMessageDiv.textContent = 'Uploading media...';
+                try {
+                    const filePath = `${currentChatId}/${localUserId}_${Date.now()}_${file.name}`;
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('chat_media')
+                        .upload(filePath, file);
+
+                    if (uploadError) {
+                        throw uploadError;
+                    }
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from('chat_media')
+                        .getPublicUrl(filePath);
+
+                    mediaUrl = publicUrlData.publicUrl;
+                    mediaType = file.type;
+                    statusMessageDiv.textContent = ''; // Clear status
+                } catch (error) {
+                    console.error('Error uploading media:', error.message);
+                    statusMessageDiv.textContent = `Error uploading media: ${error.message}`;
+                    return;
+                }
+            }
+
+            if (!messageContent && !mediaUrl) {
+                statusMessageDiv.textContent = 'Message cannot be empty.';
+                return;
+            }
+
+            const { error } = await supabase
+                .from('messages')
+                .insert({
+                    chat_id: currentChatId,
+                    sender_local_user_id: localUserId,
+                    sender_name: username,
+                    content: messageContent || null, // Send null if only media
+                    media_url: mediaUrl || null,
+                    media_type: mediaType || null
+                });
+
+            if (error) {
+                console.error('Error sending message:', error.message);
+                statusMessageDiv.textContent = `Error sending message: ${error.message}`;
+            } else {
+                messageInput.value = '';
+                mediaUploadInput.value = ''; // Clear file input
+                statusMessageDiv.textContent = '';
+            }
+        }
+
+        /**
+         * Ensures the user is a participant in the current chat.
+         */
+        async function ensureParticipant(chatId) {
+            if (!localUserId || !username || !chatId) {
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('chat_participants')
+                .select('*')
+                .eq('chat_id', chatId)
+                .eq('local_user_id', localUserId);
+
+            if (error) {
+                console.error('Error checking participant status:', error.message);
+                joinChatStatusDiv.textContent = `Error checking participant: ${error.message}`;
+                return;
+            }
+
+            if (data && data.length === 0) {
+                // User is not a participant, add them
+                const { error: insertError } = await supabase
+                    .from('chat_participants')
+                    .insert({
+                        chat_id: chatId,
+                        local_user_id: localUserId,
+                        username: username
+                    });
+
+                if (insertError) {
+                    console.error('Error adding participant:', insertError.message);
+                    joinChatStatusDiv.textContent = `Error adding participant: ${insertError.message}`;
+                } else {
+                    console.log(`User added to chat participants for chat ${chatId}.`);
+                }
+            } else {
+                console.log(`User is already a participant in chat ${chatId}.`);
+            }
+        }
+
+        /**
+         * Loads chat details (e.g., chat name and description).
+         * @param {string} chatId - The UUID of the chat.
+         * @returns {object} The chat data or null if not found/error.
+         */
+        async function loadChatDetails(chatId) {
+            if (!chatId) {
+                chatNameElement.textContent = 'No Chat Selected';
+                return null;
+            }
+            const { data, error } = await supabase
+                .from('group_chats')
+                .select('name, description')
+                .eq('id', chatId)
+                .single();
+
+            if (error) {
+                console.error('Error loading chat details:', error.message);
+                // No need to set status message here, as it might be handled by calling function
+                chatNameElement.textContent = `Chat ID: ${chatId} (Error)`;
+                return null;
+            } else if (data) {
+                chatNameElement.textContent = `Chat: ${data.name}`;
+                return data;
+            } else {
+                chatNameElement.textContent = `Chat ID: ${chatId} (Not Found)`;
+                // No need to set status message here, as it might be handled by calling function
+                return null;
+            }
+        }
+
+        /**
+         * Handles switching to a new chat.
+         * @param {string} newChatId - The UUID of the chat to switch to.
+         */
+        async function switchChat(newChatId) {
+            if (newChatId === currentChatId) return; // Already in this chat
+
+            currentChatId = newChatId;
+            // Update URL hash for the "hashtag link" functionality
+            // This will trigger a hashchange event, which calls initializeApplicationUI,
+            // but the conditional check in initializeApplicationUI will prevent infinite loops.
+            window.location.hash = `#chat/${currentChatId}`;
+
+            // Visually mark the active chat in the sidebar
+            document.querySelectorAll('#chat-list li').forEach(li => {
+                li.classList.remove('active');
+                if (li.dataset.chatId === newChatId) {
+                    li.classList.add('active');
+                }
+            });
+
+            chatWindow.innerHTML = '<p>Loading chat...</p>'; // Show loading state
+            statusMessageDiv.textContent = ''; // Clear previous status messages
+
+            // No need to ensureParticipant here, as it's handled by loadUserChats or joinChatFromLink
+            await loadChatDetails(currentChatId);
+            await loadMessages(currentChatId);
+            subscribeToMessages(currentChatId); // Subscribe to new chat's messages
+            console.log(`Switched to chat: ${currentChatId}`);
+
+            // On mobile, automatically hide sidebar after selecting a chat
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
+                sidebar.classList.add('hidden');
+                sidebarToggle.classList.remove('active');
+            }
+        }
+
+
+        /**
+         * Fetches and displays the list of chats the user is a part of.
+         * This function now takes an optional `chatIdToPrioritize` to ensure the sidebar correctly
+         * highlights and the main chat area shows the chat from the URL hash.
+         */
+        async function loadUserChats(chatIdToPrioritize = null) {
+            if (!localUserId) {
+                chatList.innerHTML = '<li>Please set your username to see chats.</li>';
+                chatCountSpan.textContent = '0';
+                return;
+            }
+
+            const { data: participantData, error: participantError } = await supabase
+                .from('chat_participants')
+                .select('chat_id')
+                .eq('local_user_id', localUserId);
+
+            if (participantError) {
+                console.error('Error fetching participant chats:', participantError.message);
+                return;
+            }
+
+            const chatIds = participantData.map(p => p.chat_id);
+
+            if (chatIds.length === 0) {
+                chatList.innerHTML = '<li>No chats found. Create one!</li>';
+                chatCountSpan.textContent = '0';
+                // If no chats, ensure no currentChatId is set and unsubscribe
+                currentChatId = null;
+                if (realtimeSubscription) {
+                    supabase.removeChannel(realtimeSubscription);
+                    realtimeSubscription = null;
+                }
+                loadChatDetails(null); // Clear chat details display
+                loadMessages(null); // Clear messages display
+                return;
+            }
+
+            const { data: chats, error: chatsError } = await supabase
+                .from('group_chats')
+                .select('id, name')
+                .in('id', chatIds)
+                .order('name', { ascending: true });
+
+            if (chatsError) {
+                console.error('Error fetching chat details:', chatsError.message);
+                return;
+            }
+
+            chatList.innerHTML = '';
+            chats.forEach(chat => {
+                const li = document.createElement('li');
+                li.textContent = chat.name;
+                li.dataset.chatId = chat.id; // Store chat ID on the element
+                li.addEventListener('click', () => switchChat(chat.id));
+                chatList.appendChild(li);
+            });
+            chatCountSpan.textContent = chats.length;
+
+            // Determine which chat to display: prioritize `chatIdToPrioritize`, then `currentChatId`, then first in list
+            let targetChatId = null;
+            if (chatIdToPrioritize && chats.some(chat => chat.id === chatIdToPrioritize)) {
+                targetChatId = chatIdToPrioritize;
+            } else if (currentChatId && chats.some(chat => chat.id === currentChatId)) {
+                targetChatId = currentChatId;
+            } else if (chats.length > 0) {
+                targetChatId = chats[0].id;
+            }
+
+            if (targetChatId) {
+                await switchChat(targetChatId);
+            } else {
+                // If no target chat, clear current chat view
+                currentChatId = null;
+                loadChatDetails(null);
+                loadMessages(null);
+                if (realtimeSubscription) {
+                    supabase.removeChannel(realtimeSubscription);
+                    realtimeSubscription = null;
+                }
+            }
+        }
+
+        /**
+         * Creates a new group chat.
+         */
+        async function createNewChat() {
+            const chatName = newChatNameInput.value.trim();
+            const chatDescription = newChatDescriptionInput.value.trim();
+
+            if (!chatName) {
+                createChatStatusDiv.textContent = 'Chat name is required.';
+                return;
+            }
+            if (!localUserId || !username) {
+                createChatStatusDiv.textContent = 'Please set your username first.';
+                return;
+            }
+
+            createChatStatusDiv.textContent = 'Creating chat...';
+            try {
+                const { data, error } = await supabase
+                    .from('group_chats')
+                    .insert({ name: chatName, description: chatDescription || null })
+                    .select('id'); // Select the ID of the newly created chat
+
+                if (error) throw error;
+
+                const newChatId = data[0].id;
+                console.log('New chat created with ID:', newChatId);
+
+                // Automatically add the creator as a participant
+                const { error: participantError } = await supabase
+                    .from('chat_participants')
+                    .insert({ chat_id: newChatId, local_user_id: localUserId, username: username });
+
+                if (participantError) throw participantError;
+
+                createChatStatusDiv.textContent = `Chat created! Link: ${window.location.origin}/#chat/${newChatId}`;
+                newChatNameInput.value = '';
+                newChatDescriptionInput.value = '';
+
+                await loadUserChats(newChatId); // Refresh chat list and immediately switch to the new chat
+                
+                // Close modal after a short delay
+                setTimeout(() => {
+                    createChatModal.style.display = 'none';
+                    createChatStatusDiv.textContent = ''; // Clear status for next time
+                }, 3000);
+
+            } catch (error) {
+                console.error('Error creating chat:', error.message);
+                createChatStatusDiv.textContent = `Error creating chat: ${error.message}`;
+            }
+        }
+
+        /**
+         * Displays the UI for joining a specific chat via link.
+         * @param {string} chatId - The UUID of the chat to preview.
+         */
+        async function showJoinChatUI(chatId) {
+            // Hide other UIs
+            usernameSetupDiv.classList.add('hidden');
+            chatInterfaceDiv.classList.add('hidden');
+            sidebar.classList.add('hidden'); // Hide sidebar in join preview
+            sidebarToggle.classList.add('hidden'); // Hide toggle button
+
+            // Show join preview UI
+            joinChatPreviewDiv.classList.remove('hidden');
+            joinChatStatusDiv.textContent = ''; // Clear previous status
+
+            const chatDetails = await loadChatDetails(chatId);
+            if (chatDetails) {
+                joinChatPreviewName.textContent = chatDetails.name;
+                joinChatPreviewDescription.textContent = chatDetails.description || 'No description provided.';
+                joinChatPreviewButton.dataset.chatIdToJoin = chatId; // Store chat ID for join button
+            } else {
+                // If chat not found or error loading, revert to username setup or default chat view
+                joinChatPreviewDiv.classList.add('hidden');
+                // Re-initialize to determine the correct default view (username setup or user's chats)
+                await initializeApplicationUI(null); // Pass null to avoid re-processing a bad URL hash
+                statusMessageDiv.textContent = 'Group chat not found or accessible. Please check the link.';
+            }
+        }
+
+        /**
+         * Handles joining a chat from the preview UI.
+         * @param {string} chatId - The UUID of the chat to join.
+         */
+        async function joinChatFromLink(chatId) {
+            if (!localUserId || !username) {
+                joinChatStatusDiv.textContent = 'Please set your username first to join.';
+                return;
+            }
+
+            joinChatStatusDiv.textContent = 'Joining chat...';
+            try {
+                await ensureParticipant(chatId); // This adds them if they're not already in
+
+                // After joining, transition to the main chat interface
+                joinChatPreviewDiv.classList.add('hidden');
+                chatInterfaceDiv.classList.remove('hidden');
+                statusMessageDiv.textContent = ''; // Clear status
+
+                // Refresh sidebar to include the new chat and auto-switch to it
+                // loadUserChats will call switchChat internally for the correct chat
+                await loadUserChats(chatId); // Pass the newly joined chat ID to prioritize it
+                console.log(`Successfully joined chat ${chatId}`);
+
+            } catch (error) {
+                console.error('Error joining chat from link:', error.message);
+                joinChatStatusDiv.textContent = `Failed to join chat: ${error.message}`;
+            }
+        }
+
+
+        // --- Event Listeners ---
+
+        // Set Username button click
+        setUsernameButton.addEventListener('click', async () => {
+            const enteredUsername = usernameInput.value.trim();
+            if (enteredUsername) {
+                username = enteredUsername;
+                localStorage.setItem('username', username);
+
+                if (!localUserId) {
+                    localUserId = generateUUID();
+                    localStorage.setItem('localUserId', localUserId);
+                }
+
+                // Call the unified initialization flow
+                await initializeApplicationUI();
+            } else {
+                statusMessageDiv.textContent = 'Please enter a username.';
+            }
+        });
+
+        // Chat input and send button
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Media attachment
+        mediaButton.addEventListener('click', () => {
+            mediaUploadInput.click();
+        });
+
+        // Sidebar toggle
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('active'); /* Add/remove active class for mobile */
+            sidebarToggle.classList.toggle('active');
+        });
+
+        // Create new chat button (opens modal)
+        createChatButton.addEventListener('click', () => {
+            createChatModal.style.display = 'flex';
+        });
+
+        // Close modal button
+        closeButton.addEventListener('click', () => {
+            createChatModal.style.display = 'none';
+            newChatNameInput.value = '';
+            newChatDescriptionInput.value = '';
+            createChatStatusDiv.textContent = '';
+        });
+
+        // Submit create chat button
+        submitCreateChatButton.addEventListener('click', createNewChat);
+
+        // Join Chat button in preview UI
+        joinChatPreviewButton.addEventListener('click', async (event) => {
+            const chatIdToJoin = event.currentTarget.dataset.chatIdToJoin;
+            if (chatIdToJoin) {
+                await joinChatFromLink(chatIdToJoin);
+            }
+        });
+
+        // --- Main Application Initialization Logic ---
+        // This function orchestrates which UI is shown on load/username set/hashchange
+        async function initializeApplicationUI() {
+            console.log("initializeApplicationUI called. Current hash:", window.location.hash);
+
+            // Ensure main container layout
+            document.querySelector('.container').style.display = 'flex';
+            document.querySelector('.container').style.flexDirection = 'column';
+
+            const urlChatId = window.location.hash.startsWith('#chat/') ? window.location.hash.substring(6) : null;
+
+            if (localUserId && username) {
+                // User has a username, now determine if they need to join a chat from URL or go to existing chats
+                usernameSetupDiv.classList.add('hidden'); // Always hide username setup if user is known
+                sidebar.classList.remove('hidden'); // Show sidebar
+                sidebarToggle.classList.remove('hidden'); // Show sidebar toggle
+
+                // For mobile, ensure sidebar starts hidden but the toggle button is there
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active'); // Ensure it's not active
+                    sidebar.classList.add('hidden'); // Ensure it's hidden by default
+                    sidebarToggle.classList.remove('active');
+                }
+
+
+                if (urlChatId) {
+                    console.log("URL has chat ID. Checking participation...");
+                    // Check if already a participant of this URL chat
+                    const { data: participantCheck, error: participantError } = await supabase
+                        .from('chat_participants')
+                        .select('*')
+                        .eq('chat_id', urlChatId)
+                        .eq('local_user_id', localUserId);
+
+                    if (participantError) {
+                        console.error('Error checking participant status for URL chat:', participantError.message);
+                        // If there's an error checking, show join UI (might be an invalid ID or RLS issue)
+                        chatInterfaceDiv.classList.add('hidden');
+                        await showJoinChatUI(urlChatId);
+                    } else if (participantCheck && participantCheck.length > 0) {
+                        console.log("User is already a participant. Switching to chat.");
+                        // Already a participant, switch to this chat directly
+                        chatInterfaceDiv.classList.remove('hidden');
+                        joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
+                        await loadUserChats(urlChatId); // Load chats and prioritize the URL chat
+                    } else {
+                        console.log("User is NOT a participant. Showing join UI.");
+                        // Not a participant, show join UI
+                        chatInterfaceDiv.classList.add('hidden');
+                        await showJoinChatUI(urlChatId);
+                    }
+                } else {
+                    console.log("No URL chat ID. Loading user's existing chats.");
+                    // No URL chat ID, just load user's existing chats
+                    chatInterfaceDiv.classList.remove('hidden');
+                    joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
+                    await loadUserChats();
+                }
+            } else {
+                console.log("User needs to set username.");
+                // User needs to set username, username setup remains visible
+                usernameSetupDiv.classList.remove('hidden'); // Ensure username setup is visible
+                chatInterfaceDiv.classList.add('hidden'); // Hide chat interface
+                joinChatPreviewDiv.classList.add('hidden'); // Hide join preview
+                sidebar.classList.add('hidden'); // Hide sidebar
+                sidebarToggle.classList.add('hidden'); // Hide toggle button
+            }
+        }
+
+
+        // --- Run on DOM Content Loaded & Hash Change ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeApplicationUI();
+        });
+
+        // Listen for hash changes to handle shared links without full page reload
+        window.addEventListener('hashchange', async () => {
+            console.log("URL hash changed. Re-initializing UI.");
+            await initializeApplicationUI();
+        });
+    </script>
+</body>
+</html>
