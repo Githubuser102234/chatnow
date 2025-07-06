@@ -49,15 +49,11 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
     <script>
-        // --- Supabase Client Initialization ---
-        // Replace with your actual Supabase URL and Anon Key
-        const SUPABASE_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA';
-
-        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Supabase client instance will be defined inside DOMContentLoaded
+        let supabase;
 
         // --- DOM Elements ---
         const usernameSetupDiv = document.getElementById('username-setup');
@@ -77,8 +73,7 @@
         let username = localStorage.getItem('username');
         const CHAT_ID = 'YOUR_DEFAULT_CHAT_ID'; // IMPORTANT: Replace with a valid UUID for an existing chat in your Supabase `group_chats` table.
                                                  // Example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
-                                                 // For a real app, you'd parse this from the URL (e.g., #chat/uuid)
-                                                 // or allow creating new chats. For this example, it's static.
+                                                 // You can create one manually in your Supabase dashboard > Table Editor.
 
         // --- Helper Functions ---
 
@@ -301,6 +296,8 @@
         }
 
         // --- Event Listeners ---
+        // Ensure these are attached *after* DOM elements are guaranteed to exist.
+        // This is handled by being inside DOMContentLoaded or simply being at the end of the body.
         setUsernameButton.addEventListener('click', async () => {
             const enteredUsername = usernameInput.value.trim();
             if (enteredUsername) {
@@ -333,6 +330,10 @@
 
         // --- Initialization on DOM Load ---
         document.addEventListener('DOMContentLoaded', async () => {
+            // IMPORTANT: Initialize Supabase client *inside* DOMContentLoaded
+            // This ensures Supabase object is available.
+            supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
             if (localUserId && username) {
                 usernameSetupDiv.classList.add('hidden');
                 chatInterfaceDiv.classList.remove('hidden');
