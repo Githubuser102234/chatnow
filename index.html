@@ -120,9 +120,9 @@
         /* Reply and Delete Buttons */
         .message .message-actions {
             position: absolute;
-            bottom: 5px;
-            /* Adjusted right position */
-            right: 50px; /* Move it further to the left to avoid timestamp */
+            /* Adjusted bottom and right positions */
+            bottom: 5px; /* Align with the timestamp's bottom */
+            right: 120px; /* Move it next to the timestamp (adjust as needed) */
             display: flex;
             font-size: 0.7em;
             gap: 5px;
@@ -130,10 +130,12 @@
             padding: 2px 5px;
             border-radius: 5px;
             box-shadow: 0 0 3px rgba(0,0,0,0.1);
+            z-index: 1; /* Ensure it's above the message content but below sender name/main text */
         }
         .message.sent .message-actions {
-            left: 15px; /* Align to the left for sent messages */
-            right: auto;
+            /* For sent messages, position relative to the left of the message bubble */
+            left: 15px; /* Adjust left position as needed for sent messages */
+            right: auto; /* Ensure right is not set */
         }
         .message-actions button {
             background: none;
