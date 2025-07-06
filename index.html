@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Supabase Group Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        #chat-window { border: 1px solid #ddd; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background-color: #e9ecef; border-radius: 4px; }
+        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 15px; max-width: 70%; word-wrap: break-word; }
+        .message.sent { background-color: #dcf8c6; float: right; clear: both; }
+        .message.received { background-color: #ffffff; float: left; clear: both; border: 1px solid #eee; }
+        .message strong { color: #075e54; }
+        .message .timestamp { font-size: 0.75em; color: #777; display: block; text-align: right; margin-top: 5px; }
+        .message img, .message video { max-width: 100%; height: auto; border-radius: 5px; margin-top: 5px; display: block; }
+        #message-input-area { display: flex; gap: 10px; margin-top: 20px; }
+        #message-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        #send-button, #media-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; }
+        #send-button:hover, #media-button:hover { background-color: #218838; }
+        #username-setup { text-align: center; margin-bottom: 20px; }
+        #username-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        #set-username-button:hover { background-color: #0056b3; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Your Group Chat!</h1>
+
+        <div id="username-setup">
+            <p>Please enter your desired username:</p>
+            <input type="text" id="username-input" placeholder="Your username">
+            <button id="set-username-button">Set Username</button>
+        </div>
+
+        <div id="chat-interface" class="hidden">
+            <h2 id="chat-name"></h2>
+            <div id="chat-window">
+                </div>
+            <div id="message-input-area">
+                <input type="text" id="message-input" placeholder="Type your message...">
+                <input type="file" id="media-upload" accept="image/*,video/*" class="hidden">
+                <button id="media-button">Attach Media</button>
+                <button id="send-button">Send</button>
+            </div>
+            <div id="status-message" style="color: red; margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Supabase Client Initialization ---
+        // Replace with your actual Supabase URL and Anon Key
+        const SUPABASE_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA';
+
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- DOM Elements ---
+        const usernameSetupDiv = document.getElementById('username-setup');
+        const usernameInput = document.getElementById('username-input');
+        const setUsernameButton = document.getElementById('set-username-button');
+        const chatInterfaceDiv = document.getElementById('chat-interface');
+        const chatNameElement = document.getElementById('chat-name');
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const mediaUploadInput = document.getElementById('media-upload');
+        const mediaButton = document.getElementById('media-button');
+        const sendButton = document.getElementById('send-button');
+        const statusMessageDiv = document.getElementById('status-message');
+
+        // --- Global Variables (for client-side user and chat data) ---
+        let localUserId = localStorage.getItem('localUserId');
+        let username = localStorage.getItem('username');
+        const CHAT_ID = 'YOUR_DEFAULT_CHAT_ID'; // Replace with a default chat ID or derive from URL
+                                                 // For a real app, you'd parse this from the URL (e.g., #chat/uuid)
+                                                 // or allow creating new chats. For this example, it's static.
+
+        // --- Helper Functions ---
+
+        /**
+         * Generates a UUID (v4) for client-side user identification.
+         * @returns {string} A new UUID string.
+         */
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        /**
+         * Displays a message in the chat window.
+         * @param {object} messageData - The message object from Supabase.
+         */
+        function displayMessage(messageData) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+
+            const isSender = (messageData.sender_local_user_id === localUserId);
+            messageElement.classList.add(isSender ? 'sent' : 'received');
+
+            const senderNameStrong = document.createElement('strong');
+            senderNameStrong.textContent = `${messageData.sender_name}: `;
+            messageElement.appendChild(senderNameStrong);
+
+            if (messageData.content) {
+                const contentSpan = document.createElement('span');
+                contentSpan.textContent = messageData.content;
+                messageElement.appendChild(contentSpan);
+            }
+
+            if (messageData.media_url) {
+                const mediaElement = document.createElement(messageData.media_type.startsWith('image') ? 'img' : 'video');
+                mediaElement.src = messageData.media_url;
+                mediaElement.alt = 'Shared Media';
+                if (messageData.media_type.startsWith('video')) {
+                    mediaElement.controls = true;
+                }
+                messageElement.appendChild(mediaElement);
+            }
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.classList.add('timestamp');
+            timestampSpan.textContent = new Date(messageData.created_at).toLocaleTimeString();
+            messageElement.appendChild(timestampSpan);
+
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to bottom
+        }
+
+        /**
+         * Loads initial messages for the current chat.
+         */
+        async function loadMessages() {
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('chat_id', CHAT_ID)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Error loading messages:', error.message);
+                statusMessageDiv.textContent = `Error loading messages: ${error.message}`;
+            } else {
+                chatWindow.innerHTML = ''; // Clear existing messages
+                data.forEach(displayMessage);
+            }
+        }
+
+        /**
+         * Subscribes to real-time changes in the messages table.
+         */
+        function subscribeToMessages() {
+            supabase
+                .channel('chat_room') // You can make this dynamic per chat_id if needed
+                .on(
+                    'postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${CHAT_ID}` },
+                    (payload) => {
+                        console.log('New message received!', payload.new);
+                        displayMessage(payload.new);
+                    }
+                )
+                .subscribe();
+        }
+
+        /**
+         * Handles sending a new message (text or media).
+         */
+        async function sendMessage() {
+            if (!localUserId || !username) {
+                statusMessageDiv.textContent = 'Please set your username first.';
+                return;
+            }
+
+            let messageContent = messageInput.value.trim();
+            let mediaUrl = null;
+            let mediaType = null;
+            const file = mediaUploadInput.files[0];
+
+            if (file) {
+                statusMessageDiv.textContent = 'Uploading media...';
+                try {
+                    const filePath = `${CHAT_ID}/${localUserId}_${Date.now()}_${file.name}`;
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('chat_media')
+                        .upload(filePath, file);
+
+                    if (uploadError) {
+                        throw uploadError;
+                    }
+
+                    // Get public URL (since bucket is public in this setup)
+                    const { data: publicUrlData } = supabase.storage
+                        .from('chat_media')
+                        .getPublicUrl(filePath);
+
+                    mediaUrl = publicUrlData.publicUrl;
+                    mediaType = file.type;
+                    statusMessageDiv.textContent = ''; // Clear status
+                } catch (error) {
+                    console.error('Error uploading media:', error.message);
+                    statusMessageDiv.textContent = `Error uploading media: ${error.message}`;
+                    return;
+                }
+            }
+
+            if (!messageContent && !mediaUrl) {
+                statusMessageDiv.textContent = 'Message cannot be empty.';
+                return;
+            }
+
+            const { error } = await supabase
+                .from('messages')
+                .insert({
+                    chat_id: CHAT_ID,
+                    sender_local_user_id: localUserId,
+                    sender_name: username,
+                    content: messageContent || null, // Send null if only media
+                    media_url: mediaUrl || null,
+                    media_type: mediaType || null
+                });
+
+            if (error) {
+                console.error('Error sending message:', error.message);
+                statusMessageDiv.textContent = `Error sending message: ${error.message}`;
+            } else {
+                messageInput.value = '';
+                mediaUploadInput.value = ''; // Clear file input
+                statusMessageDiv.textContent = '';
+            }
+        }
+
+        /**
+         * Ensures the user is a participant in the chat.
+         */
+        async function ensureParticipant() {
+            if (!localUserId || !username) {
+                return; // User needs to set username first
+            }
+
+            const { data, error } = await supabase
+                .from('chat_participants')
+                .select('*')
+                .eq('chat_id', CHAT_ID)
+                .eq('local_user_id', localUserId);
+
+            if (error) {
+                console.error('Error checking participant status:', error.message);
+                statusMessageDiv.textContent = `Error checking participant: ${error.message}`;
+                return;
+            }
+
+            if (data && data.length === 0) {
+                // User is not a participant, add them
+                const { error: insertError } = await supabase
+                    .from('chat_participants')
+                    .insert({
+                        chat_id: CHAT_ID,
+                        local_user_id: localUserId,
+                        username: username
+                    });
+
+                if (insertError) {
+                    console.error('Error adding participant:', insertError.message);
+                    statusMessageDiv.textContent = `Error adding participant: ${insertError.message}`;
+                } else {
+                    console.log('User added to chat participants.');
+                }
+            } else {
+                console.log('User is already a participant.');
+            }
+        }
+
+        /**
+         * Loads chat details (e.g., chat name).
+         */
+        async function loadChatDetails() {
+            const { data, error } = await supabase
+                .from('group_chats')
+                .select('name')
+                .eq('id', CHAT_ID)
+                .single(); // Expecting one chat with this ID
+
+            if (error) {
+                console.error('Error loading chat details:', error.message);
+                statusMessageDiv.textContent = `Error loading chat details: ${error.message}`;
+                // Fallback name if details fail to load
+                chatNameElement.textContent = `Chat ID: ${CHAT_ID}`;
+            } else if (data) {
+                chatNameElement.textContent = `Chat: ${data.name}`;
+            } else {
+                chatNameElement.textContent = `Chat ID: ${CHAT_ID} (Not Found)`;
+                statusMessageDiv.textContent = 'Chat not found. Please ensure CHAT_ID is correct or create it.';
+            }
+        }
+
+        // --- Event Listeners ---
+        setUsernameButton.addEventListener('click', () => {
+            const enteredUsername = usernameInput.value.trim();
+            if (enteredUsername) {
+                username = enteredUsername;
+                localStorage.setItem('username', username);
+                if (!localUserId) {
+                    localUserId = generateUUID();
+                    localStorage.setItem('localUserId', localUserId);
+                }
+                usernameSetupDiv.classList.add('hidden');
+                chatInterfaceDiv.classList.remove('hidden');
+                initChat(); // Initialize chat after username is set
+            } else {
+                statusMessageDiv.textContent = 'Please enter a username.';
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        mediaButton.addEventListener('click', () => {
+            mediaUploadInput.click(); // Trigger file input click
+        });
+
+        // --- Initialization ---
+        async function initChat() {
+            await loadChatDetails();
+            await ensureParticipant();
+            await loadMessages();
+            subscribeToMessages();
+        }
+
+        // Check if username is already set in local storage on page load
+        if (localUserId && username) {
+            usernameSetupDiv.classList.add('hidden');
+            chatInterfaceDiv.classList.remove('hidden');
+            initChat();
+        }
+        // If not set, the username setup div remains visible.
+    </script>
+</body>
+</html>
