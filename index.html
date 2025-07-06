@@ -204,12 +204,21 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // --- Supabase Client Declaration ---
-        // Declared globally, but assigned only after Supabase library is loaded.
-        let supabase;
+        // Supabase client instance defined directly on the window object
+        // This guarantees it's accessible globally after the CDN script loads.
+        window.supabase = Supabase.createClient(
+            'https://ahsrsrkzmphbhecishuc.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
+        );
+        console.log("Supabase client initialized directly.");
+    </script>
+
+    <script>
+        // All references to supabase now use window.supabase
+        // The DOM elements will be accessed once DOMContentLoaded fires.
 
         // --- DOM Elements ---
         const usernameSetupDiv = document.getElementById('username-setup');
@@ -244,6 +253,12 @@
         let username = localStorage.getItem('username');
         let currentChatId = null; // Will be set when a chat is selected/created
         let realtimeSubscription = null; // To manage the real-time subscription
+
+        // IMPORTANT: Replace with a valid UUID for an existing chat in your Supabase `group_chats` table.
+        // Example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+        // You can create one manually in your Supabase dashboard > Table Editor.
+        const CHAT_ID_FALLBACK = 'e8b7d9c0-1c7a-4b9f-8d2a-0f1b2c3d4e5f'; // REPLACE THIS WITH A REAL UUID FROM YOUR DB!
+
 
         // --- Helper Functions ---
 
@@ -306,7 +321,8 @@
                 chatWindow.innerHTML = '<p>Select a chat or create a new one.</p>';
                 return;
             }
-            const { data, error } = await supabase
+            // Use window.supabase
+            const { data, error } = await window.supabase
                 .from('messages')
                 .select('*')
                 .eq('chat_id', chatId)
@@ -327,12 +343,12 @@
         function subscribeToMessages(chatId) {
             if (realtimeSubscription) {
                 // Ensure we unsubscribe from the previous channel if one exists
-                supabase.removeChannel(realtimeSubscription);
+                window.supabase.removeChannel(realtimeSubscription);
             }
 
             if (!chatId) return; // Don't subscribe if no chat is selected
 
-            realtimeSubscription = supabase
+            realtimeSubscription = window.supabase
                 .channel(`chat_room_${chatId}`) // Unique channel per chat
                 .on(
                     'postgres_changes',
@@ -368,7 +384,8 @@
                 try {
                     // Path: chat_media/CHAT_ID/local_user_id_timestamp_filename
                     const filePath = `${currentChatId}/${localUserId}_${Date.now()}_${file.name}`;
-                    const { data: uploadData, error: uploadError } = await supabase.storage
+                    // Use window.supabase
+                    const { data: uploadData, error: uploadError } = await window.supabase.storage
                         .from('chat_media')
                         .upload(filePath, file);
 
@@ -376,7 +393,8 @@
                         throw uploadError;
                     }
 
-                    const { data: publicUrlData } = supabase.storage
+                    // Use window.supabase
+                    const { data: publicUrlData } = window.supabase.storage
                         .from('chat_media')
                         .getPublicUrl(filePath);
 
@@ -395,7 +413,8 @@
                 return;
             }
 
-            const { error } = await supabase
+            // Use window.supabase
+            const { error } = await window.supabase
                 .from('messages')
                 .insert({
                     chat_id: currentChatId,
@@ -424,7 +443,8 @@
                 return;
             }
 
-            const { data, error } = await supabase
+            // Use window.supabase
+            const { data, error } = await window.supabase
                 .from('chat_participants')
                 .select('*')
                 .eq('chat_id', chatId)
@@ -438,7 +458,8 @@
 
             if (data && data.length === 0) {
                 // User is not a participant, add them
-                const { error: insertError } = await supabase
+                // Use window.supabase
+                const { error: insertError } = await window.supabase
                     .from('chat_participants')
                     .insert({
                         chat_id: chatId,
@@ -465,7 +486,8 @@
                 chatNameElement.textContent = 'No Chat Selected';
                 return;
             }
-            const { data, error } = await supabase
+            // Use window.supabase
+            const { data, error } = await window.supabase
                 .from('group_chats')
                 .select('name')
                 .eq('id', chatId)
@@ -523,7 +545,8 @@
                 return;
             }
 
-            const { data: participantData, error: participantError } = await supabase
+            // Use window.supabase
+            const { data: participantData, error: participantError } = await window.supabase
                 .from('chat_participants')
                 .select('chat_id')
                 .eq('local_user_id', localUserId);
@@ -541,7 +564,7 @@
                 // If no chats, ensure no currentChatId is set and unsubscribe
                 currentChatId = null;
                 if (realtimeSubscription) {
-                    supabase.removeChannel(realtimeSubscription);
+                    window.supabase.removeChannel(realtimeSubscription);
                     realtimeSubscription = null;
                 }
                 loadChatDetails(null); // Clear chat details
@@ -549,7 +572,8 @@
                 return;
             }
 
-            const { data: chats, error: chatsError } = await supabase
+            // Use window.supabase
+            const { data: chats, error: chatsError } = await window.supabase
                 .from('group_chats')
                 .select('id, name')
                 .in('id', chatIds)
@@ -588,7 +612,7 @@
                     loadChatDetails(null);
                     loadMessages(null);
                     if (realtimeSubscription) {
-                        supabase.removeChannel(realtimeSubscription);
+                        window.supabase.removeChannel(realtimeSubscription);
                         realtimeSubscription = null;
                     }
                 }
@@ -599,6 +623,13 @@
          * Creates a new group chat.
          */
         async function createNewChat() {
+            console.log("Attempting to create new chat.");
+            if (!window.supabase) { // Defensive check
+                console.error("Supabase client is not initialized.");
+                createChatStatusDiv.textContent = 'Supabase connection error. Please refresh.';
+                return;
+            }
+
             const chatName = newChatNameInput.value.trim();
             const chatDescription = newChatDescriptionInput.value.trim();
 
@@ -613,7 +644,8 @@
 
             createChatStatusDiv.textContent = 'Creating chat...';
             try {
-                const { data, error } = await supabase
+                // Use window.supabase
+                const { data, error } = await window.supabase
                     .from('group_chats')
                     .insert({ name: chatName, description: chatDescription || null })
                     .select('id'); // Select the ID of the newly created chat
@@ -624,7 +656,8 @@
                 console.log('New chat created with ID:', newChatId);
 
                 // Automatically add the creator as a participant
-                const { error: participantError } = await supabase
+                // Use window.supabase
+                const { error: participantError } = await window.supabase
                     .from('chat_participants')
                     .insert({ chat_id: newChatId, local_user_id: localUserId, username: username });
 
@@ -719,11 +752,14 @@
 
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // IMPORTANT: Initialize Supabase client *inside* DOMContentLoaded
-            // This ensures Supabase object is available after the library loads.
-            const SUPABASE_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA';
-            supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            // This ensures all DOM elements are available before listeners are attached.
+            // Supabase client is already initialized in the previous script block,
+            // so we just access it from window.supabase.
+
+            // Ensure the main chat container is flexible to fill remaining space
+            document.querySelector('.container').style.display = 'flex';
+            document.querySelector('.container').style.flexDirection = 'column';
+
 
             // Check if user data exists in local storage
             if (localUserId && username) {
