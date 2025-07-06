@@ -1,29 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ChatNow">
-<link rel="apple-touch-icon" href="/icons/icon-180.png">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple Supabase Group Chat</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background-color: #f4f7f6;
-            color: #333;
-            display: flex; /* Flex container for sidebar + main content */
-            height: 100vh;
-            overflow: hidden; /* Prevent body scroll, content will scroll */
-        }
-
-        /* Base styles for main content areas to hide by default */
-        #username-setup, #join-chat-preview, #chat-interface {
-            display: none;
-        }
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; display: flex; height: 100vh; }
 
         /* Sidebar Styles */
         #sidebar {
@@ -34,51 +16,56 @@
             box-shadow: 2px 0 5px rgba(0,0,0,0.2);
             display: flex;
             flex-direction: column;
-            position: fixed; /* Fixed position for sidebar on mobile */
-            top: 0;
-            left: 0;
-            height: 100vh; /* Full height */
+            position: relative;
             z-index: 1000;
-            transform: translateX(-100%); /* Start off-screen */
             transition: transform 0.3s ease-in-out;
         }
-        #sidebar.visible { /* Use 'visible' instead of 'hidden' for clarity */
-            transform: translateX(0%); /* Slide in */
+        #sidebar.hidden {
+            transform: translateX(-100%);
+            position: absolute; /* Hide completely when collapsed */
         }
-
-        /* Sidebar Toggle Button */
         #sidebar-toggle {
-            position: fixed;
-            top: 15px;
-            left: 15px;
+            position: absolute;
+            top: 20px;
+            left: calc(100% + 10px); /* Position outside sidebar */
             background-color: #007bff;
             color: white;
             border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
+            padding: 10px 15px;
             cursor: pointer;
-            z-index: 1001; /* Above sidebar */
-            font-size: 0.9em;
-            display: block; /* Default to block for mobile */
+            border-radius: 5px;
+            z-index: 1001; /* Ensure it's above other content */
         }
         #sidebar-toggle.active {
-            background-color: #dc3545; /* Red when open */
+            background-color: #dc3545; /* Red when open, indicating "close" */
         }
+        #sidebar h3 { margin-top: 0; color: #ecf0f1; }
+        #chat-list { list-style: none; padding: 0; flex-grow: 1; overflow-y: auto; }
+        #chat-list li { margin-bottom: 10px; cursor: pointer; padding: 8px; border-radius: 4px; transition: background-color 0.2s; }
+        #chat-list li:hover { background-color: #34495e; }
+        #chat-list li.active { background-color: #007bff; font-weight: bold; }
+        #create-chat-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+            width: 100%;
+        }
+        #create-chat-button:hover { background-color: #218838; }
 
         /* Main Content Area */
         .main-content {
-            flex-grow: 1; /* Takes remaining space */
+            flex-grow: 1;
             padding: 20px;
             display: flex;
             flex-direction: column;
             position: relative;
-            z-index: 999; /* Below sidebar */
-            transition: margin-left 0.3s ease-in-out; /* For desktop sidebar reveal */
         }
-
         .container {
             max-width: 800px;
-            width: 100%; /* Take full width on mobile */
             margin: 0 auto;
             background-color: #fff;
             padding: 20px;
@@ -88,12 +75,10 @@
             display: flex;
             flex-direction: column;
         }
-
-        /* Chat window and message input */
         #chat-window {
             border: 1px solid #ddd;
-            height: calc(100vh - 180px); /* Adjust height for mobile viewport */
-            flex-grow: 1;
+            height: 400px; /* Fixed height for scroll */
+            flex-grow: 1; /* Allow it to grow in the column flex */
             overflow-y: scroll;
             padding: 10px;
             margin-bottom: 10px;
@@ -106,62 +91,106 @@
         .message strong { color: #075e54; }
         .message .timestamp { font-size: 0.75em; color: #777; display: block; text-align: right; margin-top: 5px; }
         .message img, .message video { max-width: 100%; height: auto; border-radius: 5px; margin-top: 5px; display: block; }
-        #message-input-area { display: flex; gap: 10px; margin-top: 10px; padding-bottom: 10px; /* Add some padding for keyboard */ }
+        #message-input-area { display: flex; gap: 10px; margin-top: 10px; /* Adjusted margin */ }
         #message-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         #send-button, #media-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; }
         #send-button:hover, #media-button:hover { background-color: #218838; }
+        #username-setup { text-align: center; margin-bottom: 20px; }
+        #username-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        #set-username-button:hover { background-color: #0056b3; }
+        .hidden { display: none; }
 
-        /* Username Setup and Join Preview centered */
-        #username-setup, #join-chat-preview {
+        /* Modal for Create Chat */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
             max-width: 500px;
-            width: 100%;
-            margin: auto; /* Centers horizontally and vertically */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-content input[type="text"], .modal-content textarea {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal-content button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .modal-content button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Join Chat Preview UI */
+        #join-chat-preview {
+            max-width: 500px;
+            margin: 50px auto;
             padding: 30px;
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             text-align: center;
         }
-
-        /* Modal styles remain mostly the same as they are full-screen overlays */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1002; /* Higher than sidebar */
-            left: 0; top: 0; width: 100%; height: 100%; overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-            justify-content: center; align-items: center;
+        #join-chat-preview h2 {
+            color: #34495e;
+            margin-bottom: 10px;
         }
-        .modal-content {
-            background-color: #fefefe; padding: 20px; border: 1px solid #888;
-            width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            position: relative;
+        #join-chat-preview p {
+            color: #555;
+            margin-bottom: 20px;
         }
-        .modal-content input[type="text"], .modal-content textarea { width: calc(100% - 22px); }
-
-
-        /* Media Queries for Desktop Layout */
-        @media (min-width: 768px) {
-            #sidebar {
-                position: relative; /* Not fixed on desktop */
-                transform: translateX(0%); /* Always visible */
-                flex-shrink: 0; /* Don't shrink */
-                height: 100vh; /* Still full height */
-            }
-            #sidebar.hidden { /* Override hidden for desktop */
-                transform: translateX(0%);
-            }
-            #sidebar-toggle {
-                display: none; /* Hide toggle button on desktop */
-            }
-            .main-content {
-                margin-left: 0; /* No margin on desktop */
-            }
+        #join-chat-preview button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+        #join-chat-preview button:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-    <button id="sidebar-toggle">Chats</button>
+    <button id="sidebar-toggle">Toggle Sidebar</button>
 
     <div id="sidebar" class="hidden">
         <h3>Your Group Chats (<span id="chat-count">0</span>)</h3>
@@ -174,7 +203,7 @@
         <div class="container">
             <h1>Welcome to Your Group Chat!</h1>
 
-            <div id="username-setup" class="hidden">
+            <div id="username-setup">
                 <p>Please enter your desired username:</p>
                 <input type="text" id="username-input" placeholder="Your username">
                 <button id="set-username-button">Set Username</button>
@@ -513,14 +542,7 @@
          * @param {string} newChatId - The UUID of the chat to switch to.
          */
         async function switchChat(newChatId) {
-            if (newChatId === currentChatId) {
-                // If already in this chat, and on mobile, hide the sidebar
-                if (window.innerWidth < 768) { // Assuming 768px is breakpoint for mobile
-                    sidebar.classList.remove('visible');
-                    sidebarToggle.classList.remove('active');
-                }
-                return;
-            }
+            if (newChatId === currentChatId) return; // Already in this chat
 
             currentChatId = newChatId;
             // Update URL hash for the "hashtag link" functionality
@@ -539,12 +561,7 @@
             chatWindow.innerHTML = '<p>Loading chat...</p>'; // Show loading state
             statusMessageDiv.textContent = ''; // Clear previous status messages
 
-            // Hide sidebar on mobile after selecting a chat
-            if (window.innerWidth < 768) {
-                sidebar.classList.remove('visible');
-                sidebarToggle.classList.remove('active');
-            }
-
+            // No need to ensureParticipant here, as it's handled by loadUserChats or joinChatFromLink
             await loadChatDetails(currentChatId);
             await loadMessages(currentChatId);
             subscribeToMessages(currentChatId); // Subscribe to new chat's messages
@@ -693,12 +710,11 @@
          * @param {string} chatId - The UUID of the chat to preview.
          */
         async function showJoinChatUI(chatId) {
-            // Explicitly hide all major UI components first
+            // Hide other UIs
             usernameSetupDiv.classList.add('hidden');
             chatInterfaceDiv.classList.add('hidden');
-            sidebar.classList.remove('visible'); // Ensure sidebar is hidden on join UI
-            sidebarToggle.classList.remove('active'); // Deactivate toggle
-            sidebarToggle.classList.add('hidden'); // Hide sidebar toggle in join preview
+            sidebar.classList.add('hidden'); // Hide sidebar in join preview
+            sidebarToggle.classList.add('hidden'); // Hide toggle button
 
             // Show join preview UI
             joinChatPreviewDiv.classList.remove('hidden');
@@ -741,12 +757,6 @@
                 // loadUserChats will call switchChat internally for the correct chat
                 await loadUserChats(chatId); // Pass the newly joined chat ID to prioritize it
                 console.log(`Successfully joined chat ${chatId}`);
-
-                // On mobile, automatically hide the sidebar after joining a chat
-                if (window.innerWidth < 768) {
-                    sidebar.classList.remove('visible');
-                    sidebarToggle.classList.remove('active');
-                }
 
             } catch (error) {
                 console.error('Error joining chat from link:', error.message);
@@ -791,7 +801,7 @@
 
         // Sidebar toggle
         sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('visible'); // Toggle 'visible' class
+            sidebar.classList.toggle('hidden');
             sidebarToggle.classList.toggle('active');
         });
 
@@ -824,27 +834,21 @@
         async function initializeApplicationUI() {
             console.log("initializeApplicationUI called. Current hash:", window.location.hash);
 
-            // Hide all main UI components by default, then show the relevant one
-            usernameSetupDiv.classList.add('hidden');
-            chatInterfaceDiv.classList.add('hidden');
-            joinChatPreviewDiv.classList.add('hidden');
-            sidebar.classList.remove('visible'); // Ensure sidebar is closed initially
-            sidebarToggle.classList.remove('active'); // Deactivate toggle button
-
-            // Ensure main container layout is set for proper flex behavior
+            // Ensure main container layout
             document.querySelector('.container').style.display = 'flex';
             document.querySelector('.container').style.flexDirection = 'column';
-
 
             const urlChatId = window.location.hash.startsWith('#chat/') ? window.location.hash.substring(6) : null;
 
             if (localUserId && username) {
-                // User has a username, proceed based on URL hash
-                sidebar.classList.remove('hidden'); // Show sidebar but keep it off-screen for mobile initially
+                // User has a username, now determine if they need to join a chat from URL or go to existing chats
+                usernameSetupDiv.classList.add('hidden'); // Always hide username setup if user is known
+                sidebar.classList.remove('hidden'); // Show sidebar
                 sidebarToggle.classList.remove('hidden'); // Show sidebar toggle
 
                 if (urlChatId) {
                     console.log("URL has chat ID. Checking participation...");
+                    // Check if already a participant of this URL chat
                     const { data: participantCheck, error: participantError } = await supabase
                         .from('chat_participants')
                         .select('*')
@@ -853,28 +857,36 @@
 
                     if (participantError) {
                         console.error('Error checking participant status for URL chat:', participantError.message);
-                        statusMessageDiv.textContent = `Error loading chat: ${participantError.message}`;
-                        // Fallback to showing join UI or general chats if error
-                        await showJoinChatUI(urlChatId); // Attempt to show join UI even on error
+                        // If there's an error checking, show join UI (might be an invalid ID or RLS issue)
+                        chatInterfaceDiv.classList.add('hidden');
+                        await showJoinChatUI(urlChatId);
                     } else if (participantCheck && participantCheck.length > 0) {
-                        console.log("User is already a participant. Showing chat interface.");
+                        console.log("User is already a participant. Switching to chat.");
+                        // Already a participant, switch to this chat directly
                         chatInterfaceDiv.classList.remove('hidden');
-                        await loadUserChats(urlChatId); // Load user's chats and prioritize the URL chat
+                        joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
+                        await loadUserChats(urlChatId); // Load chats and prioritize the URL chat
                     } else {
                         console.log("User is NOT a participant. Showing join UI.");
+                        // Not a participant, show join UI
+                        chatInterfaceDiv.classList.add('hidden');
                         await showJoinChatUI(urlChatId);
                     }
                 } else {
                     console.log("No URL chat ID. Loading user's existing chats.");
+                    // No URL chat ID, just load user's existing chats
                     chatInterfaceDiv.classList.remove('hidden');
-                    await loadUserChats(); // Load user's chats and display the first one
+                    joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
+                    await loadUserChats();
                 }
             } else {
-                // User needs to set username, show username setup
                 console.log("User needs to set username.");
-                usernameSetupDiv.classList.remove('hidden');
-                sidebar.classList.add('hidden'); // Ensure sidebar is hidden if no username
-                sidebarToggle.classList.add('hidden'); // Hide toggle if no username
+                // User needs to set username, username setup remains visible
+                usernameSetupDiv.classList.remove('hidden'); // Ensure username setup is visible
+                chatInterfaceDiv.classList.add('hidden'); // Hide chat interface
+                joinChatPreviewDiv.classList.add('hidden'); // Hide join preview
+                sidebar.classList.add('hidden'); // Hide sidebar
+                sidebarToggle.classList.add('hidden'); // Hide toggle button
             }
         }
 
