@@ -5,7 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple Supabase Group Chat</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; display: flex; height: 100vh; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll when sidebar is open */
+        }
 
         /* Sidebar Styles */
         #sidebar {
@@ -97,7 +105,7 @@
         #send-button:hover, #media-button:hover { background-color: #218838; }
         #username-setup { text-align: center; margin-bottom: 20px; }
         #username-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4ppx; cursor: pointer; }
         #set-username-button:hover { background-color: #0056b3; }
         .hidden { display: none; }
 
@@ -186,6 +194,91 @@
         }
         #join-chat-preview button:hover {
             background-color: #0056b3;
+        }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column; /* Stack elements vertically */
+            }
+
+            #sidebar {
+                position: fixed; /* Make sidebar fixed to overlay content */
+                top: 0;
+                left: 0;
+                width: 75%; /* Occupy most of the screen width */
+                height: 100vh;
+                padding: 15px;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+                transform: translateX(-100%); /* Start hidden */
+            }
+            #sidebar.hidden {
+                transform: translateX(-100%); /* Keep hidden state */
+            }
+            #sidebar.active { /* Use 'active' class to show sidebar */
+                transform: translateX(0);
+            }
+
+            #sidebar-toggle {
+                position: fixed; /* Fixed position for toggle button */
+                top: 15px;
+                left: 15px; /* Position inside main content area */
+                z-index: 1002; /* Above sidebar */
+                padding: 8px 12px;
+            }
+            #sidebar-toggle.active {
+                left: calc(75% + 15px); /* Move toggle when sidebar is open */
+                background-color: #dc3545; /* Red to indicate "close" */
+            }
+
+            .main-content {
+                padding: 10px; /* Reduce padding for smaller screens */
+                width: 100%; /* Take full width */
+            }
+            .container {
+                padding: 15px;
+                border-radius: 0; /* Remove border-radius for full width feel */
+                box-shadow: none; /* Remove shadow to blend better */
+                height: 100%; /* Occupy full height */
+                justify-content: space-between; /* Push input to bottom */
+            }
+
+            #chat-window {
+                height: calc(100vh - 200px); /* Adjust height to fit screen, accounting for headers/input */
+                margin-bottom: 10px;
+            }
+
+            .message {
+                max-width: 85%; /* Allow messages to take more width */
+                font-size: 0.9em;
+            }
+
+            #message-input-area {
+                flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+                gap: 5px; /* Reduce gap */
+            }
+            #message-input {
+                flex-basis: 100%; /* Take full width */
+                margin-bottom: 5px; /* Space from buttons */
+            }
+            #media-button, #send-button {
+                flex-grow: 1; /* Allow buttons to grow */
+                padding: 8px 10px; /* Adjust button padding */
+                font-size: 0.9em;
+            }
+
+            #username-setup, #join-chat-preview {
+                margin: 20px auto; /* Adjust margin for mobile */
+                padding: 20px;
+                width: 90%; /* Make them wider */
+                max-width: none; /* Override max-width */
+            }
+
+            .modal-content {
+                width: 95%; /* Make modals almost full screen */
+                margin: 10px;
+                padding: 15px;
+            }
         }
     </style>
 </head>
@@ -566,6 +659,13 @@
             await loadMessages(currentChatId);
             subscribeToMessages(currentChatId); // Subscribe to new chat's messages
             console.log(`Switched to chat: ${currentChatId}`);
+
+            // On mobile, automatically hide sidebar after selecting a chat
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
+                sidebar.classList.add('hidden');
+                sidebarToggle.classList.remove('active');
+            }
         }
 
 
@@ -802,6 +902,7 @@
         // Sidebar toggle
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('active'); /* Add/remove active class for mobile */
             sidebarToggle.classList.toggle('active');
         });
 
@@ -845,6 +946,14 @@
                 usernameSetupDiv.classList.add('hidden'); // Always hide username setup if user is known
                 sidebar.classList.remove('hidden'); // Show sidebar
                 sidebarToggle.classList.remove('hidden'); // Show sidebar toggle
+
+                // For mobile, ensure sidebar starts hidden but the toggle button is there
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active'); // Ensure it's not active
+                    sidebar.classList.add('hidden'); // Ensure it's hidden by default
+                    sidebarToggle.classList.remove('active');
+                }
+
 
                 if (urlChatId) {
                     console.log("URL has chat ID. Checking participation...");
