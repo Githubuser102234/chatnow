@@ -156,6 +156,37 @@
         .modal-content button:hover {
             background-color: #0056b3;
         }
+
+        /* Join Chat Preview UI */
+        #join-chat-preview {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        #join-chat-preview h2 {
+            color: #34495e;
+            margin-bottom: 10px;
+        }
+        #join-chat-preview p {
+            color: #555;
+            margin-bottom: 20px;
+        }
+        #join-chat-preview button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+        #join-chat-preview button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -176,6 +207,13 @@
                 <p>Please enter your desired username:</p>
                 <input type="text" id="username-input" placeholder="Your username">
                 <button id="set-username-button">Set Username</button>
+            </div>
+
+            <div id="join-chat-preview" class="hidden">
+                <h2>Join "<span id="join-chat-name"></span>"?</h2>
+                <p id="join-chat-description"></p>
+                <button id="join-chat-button">Join Chat</button>
+                <div id="join-chat-status" style="color: red; margin-top: 10px;"></div>
             </div>
 
             <div id="chat-interface" class="hidden">
@@ -209,13 +247,12 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
         // Supabase client instance
-        // It's defined within the module scope, no need for window.supabase
+        // It's defined within the module scope
         const supabase = createClient(
             'https://ahsrsrkzmphbhecishuc.supabase.co',
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
         );
         console.log("Supabase client initialized via module import.");
-
 
         // --- DOM Elements ---
         const usernameSetupDiv = document.getElementById('username-setup');
@@ -245,17 +282,19 @@
         const submitCreateChatButton = document.getElementById('submit-create-chat');
         const createChatStatusDiv = document.getElementById('create-chat-status');
 
+        // New Join Chat Preview UI elements
+        const joinChatPreviewDiv = document.getElementById('join-chat-preview');
+        const joinChatPreviewName = document.getElementById('join-chat-name');
+        const joinChatPreviewDescription = document.getElementById('join-chat-description');
+        const joinChatPreviewButton = document.getElementById('join-chat-button');
+        const joinChatStatusDiv = document.getElementById('join-chat-status');
+
+
         // --- Global Variables (for client-side user and chat data) ---
         let localUserId = localStorage.getItem('localUserId');
         let username = localStorage.getItem('username');
         let currentChatId = null; // Will be set when a chat is selected/created
         let realtimeSubscription = null; // To manage the real-time subscription
-
-        // IMPORTANT: Replace with a valid UUID for an existing chat in your Supabase `group_chats` table.
-        // Example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
-        // You can create one manually in your Supabase dashboard > Table Editor.
-        const CHAT_ID_FALLBACK = 'e8b7d9c0-1c7a-4b9f-8d2a-0f1b2c3d4e5f'; // REPLACE THIS WITH A REAL UUID FROM YOUR DB!
-
 
         // --- Helper Functions ---
 
@@ -338,8 +377,7 @@
          */
         function subscribeToMessages(chatId) {
             if (realtimeSubscription) {
-                // Ensure we unsubscribe from the previous channel if one exists
-                supabase.removeChannel(realtimeSubscription);
+                supabase.removeChannel(realtimeSubscription); // Unsubscribe from previous channel
             }
 
             if (!chatId) return; // Don't subscribe if no chat is selected
@@ -378,7 +416,6 @@
             if (file) {
                 statusMessageDiv.textContent = 'Uploading media...';
                 try {
-                    // Path: chat_media/CHAT_ID/local_user_id_timestamp_filename
                     const filePath = `${currentChatId}/${localUserId}_${Date.now()}_${file.name}`;
                     const { data: uploadData, error: uploadError } = await supabase.storage
                         .from('chat_media')
@@ -444,7 +481,7 @@
 
             if (error) {
                 console.error('Error checking participant status:', error.message);
-                statusMessageDiv.textContent = `Error checking participant: ${error.message}`;
+                joinChatStatusDiv.textContent = `Error checking participant: ${error.message}`;
                 return;
             }
 
@@ -460,7 +497,7 @@
 
                 if (insertError) {
                     console.error('Error adding participant:', insertError.message);
-                    statusMessageDiv.textContent = `Error adding participant: ${insertError.message}`;
+                    joinChatStatusDiv.textContent = `Error adding participant: ${insertError.message}`;
                 } else {
                     console.log(`User added to chat participants for chat ${chatId}.`);
                 }
@@ -470,16 +507,18 @@
         }
 
         /**
-         * Loads chat details (e.g., chat name).
+         * Loads chat details (e.g., chat name and description).
+         * @param {string} chatId - The UUID of the chat.
+         * @returns {object} The chat data or null if not found/error.
          */
         async function loadChatDetails(chatId) {
             if (!chatId) {
                 chatNameElement.textContent = 'No Chat Selected';
-                return;
+                return null;
             }
             const { data, error } = await supabase
                 .from('group_chats')
-                .select('name')
+                .select('name, description')
                 .eq('id', chatId)
                 .single();
 
@@ -487,11 +526,14 @@
                 console.error('Error loading chat details:', error.message);
                 statusMessageDiv.textContent = `Error loading chat details: ${error.message}`;
                 chatNameElement.textContent = `Chat ID: ${chatId} (Error)`;
+                return null;
             } else if (data) {
                 chatNameElement.textContent = `Chat: ${data.name}`;
+                return data;
             } else {
                 chatNameElement.textContent = `Chat ID: ${chatId} (Not Found)`;
                 statusMessageDiv.textContent = 'Chat not found. Please ensure CHAT_ID is correct or create it.';
+                return null;
             }
         }
 
@@ -517,7 +559,7 @@
             chatWindow.innerHTML = '<p>Loading chat...</p>'; // Show loading state
             statusMessageDiv.textContent = ''; // Clear previous status messages
 
-            await ensureParticipant(currentChatId); // Ensure user is a participant of the new chat
+            // No need to ensureParticipant here, as it's handled by loadUserChats or joinChatFromLink
             await loadChatDetails(currentChatId);
             await loadMessages(currentChatId);
             subscribeToMessages(currentChatId); // Subscribe to new chat's messages
@@ -556,8 +598,8 @@
                     supabase.removeChannel(realtimeSubscription);
                     realtimeSubscription = null;
                 }
-                loadChatDetails(null); // Clear chat details
-                loadMessages(null); // Clear messages
+                loadChatDetails(null); // Clear chat details display
+                loadMessages(null); // Clear messages display
                 return;
             }
 
@@ -582,17 +624,15 @@
             });
             chatCountSpan.textContent = chats.length;
 
-            // If no chat is currently selected, and there are chats available, select the first one.
-            // Or if a chat is in the URL hash, prioritize that.
+            // Prioritize URL hash chat if user is a participant.
             const urlChatId = window.location.hash.startsWith('#chat/') ? window.location.hash.substring(6) : null;
+            const isUrlChatParticipant = urlChatId && chats.some(chat => chat.id === urlChatId);
 
-            if (urlChatId && chats.some(chat => chat.id === urlChatId)) {
+            if (isUrlChatParticipant) {
                 switchChat(urlChatId);
-            } else if (!currentChatId && chats.length > 0) {
-                switchChat(chats[0].id);
-            } else if (currentChatId && !chats.some(chat => chat.id === currentChatId)) {
-                 // If the previously active chat is no longer in the user's list (e.g., deleted)
-                 // Switch to the first available chat or clear if none
+            } else if (!currentChatId || !chats.some(chat => chat.id === currentChatId)) {
+                // If no chat selected, or previously selected chat is no longer in user's list,
+                // switch to the first chat in their list.
                 if (chats.length > 0) {
                     switchChat(chats[0].id);
                 } else {
@@ -611,9 +651,6 @@
          * Creates a new group chat.
          */
         async function createNewChat() {
-            console.log("Attempting to create new chat.");
-            // No need for 'if (!supabase)' check here, as it's guaranteed to be initialized by module system.
-
             const chatName = newChatNameInput.value.trim();
             const chatDescription = newChatDescriptionInput.value.trim();
 
@@ -649,9 +686,8 @@
                 newChatNameInput.value = '';
                 newChatDescriptionInput.value = '';
 
-                // Refresh chat list and switch to the new chat
-                await loadUserChats(); // This will refresh the sidebar and trigger switchChat if needed
-
+                await loadUserChats(); // Refresh chat list and handle switching
+                
                 // Close modal after a short delay
                 setTimeout(() => {
                     createChatModal.style.display = 'none';
@@ -661,6 +697,60 @@
             } catch (error) {
                 console.error('Error creating chat:', error.message);
                 createChatStatusDiv.textContent = `Error creating chat: ${error.message}`;
+            }
+        }
+
+        /**
+         * Displays the UI for joining a specific chat via link.
+         * @param {string} chatId - The UUID of the chat to preview.
+         */
+        async function showJoinChatUI(chatId) {
+            usernameSetupDiv.classList.add('hidden');
+            chatInterfaceDiv.classList.add('hidden');
+            joinChatPreviewDiv.classList.remove('hidden');
+            sidebar.classList.add('hidden'); // Hide sidebar in join preview
+            sidebarToggle.classList.add('hidden'); // Hide toggle button
+
+            joinChatStatusDiv.textContent = ''; // Clear previous status
+
+            const chatDetails = await loadChatDetails(chatId); // Uses existing loadChatDetails
+            if (chatDetails) {
+                joinChatPreviewName.textContent = chatDetails.name;
+                joinChatPreviewDescription.textContent = chatDetails.description || 'No description provided.';
+                joinChatPreviewButton.dataset.chatIdToJoin = chatId; // Store chat ID for join button
+            } else {
+                // If chat not found, revert to username setup or default chat view
+                joinChatPreviewDiv.classList.add('hidden');
+                usernameSetupDiv.classList.remove('hidden'); // Or maybe redirect to general chat list
+                statusMessageDiv.textContent = 'Group chat not found or accessible.';
+            }
+        }
+
+        /**
+         * Handles joining a chat from the preview UI.
+         * @param {string} chatId - The UUID of the chat to join.
+         */
+        async function joinChatFromLink(chatId) {
+            if (!localUserId || !username) {
+                joinChatStatusDiv.textContent = 'Please set your username first to join.';
+                return;
+            }
+
+            joinChatStatusDiv.textContent = 'Joining chat...';
+            try {
+                await ensureParticipant(chatId); // This adds them if they're not already in
+
+                // After joining, transition to the main chat interface
+                joinChatPreviewDiv.classList.add('hidden');
+                chatInterfaceDiv.classList.remove('hidden');
+                statusMessageDiv.textContent = ''; // Clear status
+
+                await loadUserChats(); // Refresh sidebar to include the new chat and auto-switch to it
+                console.log(`Successfully joined chat ${chatId}`);
+
+            } catch (error) {
+                console.error('Error joining chat from link:', error.message);
+                joinChatStatusDiv.textContent = `Failed to join chat: ${error.message}`;
             }
         }
 
@@ -679,11 +769,8 @@
                     localStorage.setItem('localUserId', localUserId);
                 }
 
-                usernameSetupDiv.classList.add('hidden');
-                chatInterfaceDiv.classList.remove('hidden');
-                sidebar.classList.remove('hidden'); // Show sidebar after username is set
-                sidebarToggle.classList.remove('hidden'); // Show toggle button
-                await initChat();
+                // Call the unified initialization flow
+                await initializeApplicationUI();
             } else {
                 statusMessageDiv.textContent = 'Please enter a username.';
             }
@@ -705,12 +792,12 @@
         // Sidebar toggle
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('hidden');
-            sidebarToggle.classList.toggle('active'); // Change color/state of toggle button
+            sidebarToggle.classList.toggle('active');
         });
 
         // Create new chat button (opens modal)
         createChatButton.addEventListener('click', () => {
-            createChatModal.style.display = 'flex'; // Use flex to center
+            createChatModal.style.display = 'flex';
         });
 
         // Close modal button
@@ -724,33 +811,75 @@
         // Submit create chat button
         submitCreateChatButton.addEventListener('click', createNewChat);
 
+        // Join Chat button in preview UI
+        joinChatPreviewButton.addEventListener('click', async (event) => {
+            const chatIdToJoin = event.currentTarget.dataset.chatIdToJoin;
+            if (chatIdToJoin) {
+                await joinChatFromLink(chatIdToJoin);
+            }
+        });
 
-        // --- Initialization on DOM Load ---
-        async function initChat() {
-            // This function is called after the username is set (or retrieved)
-            // It manages the core chat setup.
-            await loadUserChats(); // Load chats for the sidebar, which will also handle initial chat selection
-        }
-
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Ensure the main chat container is flexible to fill remaining space
+        // --- Main Application Initialization Logic ---
+        // This function orchestrates which UI is shown on load/username set
+        async function initializeApplicationUI() {
+            // Ensure main container layout
             document.querySelector('.container').style.display = 'flex';
             document.querySelector('.container').style.flexDirection = 'column';
 
+            const urlChatId = window.location.hash.startsWith('#chat/') ? window.location.hash.substring(6) : null;
 
-            // Check if user data exists in local storage
             if (localUserId && username) {
-                usernameSetupDiv.classList.add('hidden');
-                chatInterfaceDiv.classList.remove('hidden');
-                sidebar.classList.remove('hidden');
-                sidebarToggle.classList.remove('hidden');
-                await initChat(); // Initialize chat if user data exists
+                // User has a username, now determine if they need to join a chat from URL
+                usernameSetupDiv.classList.add('hidden'); // Always hide username setup if user is known
+                sidebar.classList.remove('hidden'); // Show sidebar
+                sidebarToggle.classList.remove('hidden'); // Show sidebar toggle
+
+                if (urlChatId) {
+                    // Check if already a participant of this URL chat
+                    const { data: participantCheck, error: participantError } = await supabase
+                        .from('chat_participants')
+                        .select('*')
+                        .eq('chat_id', urlChatId)
+                        .eq('local_user_id', localUserId);
+
+                    if (participantError) {
+                        console.error('Error checking participant status for URL chat:', participantError.message);
+                        statusMessageDiv.textContent = `Error loading chat: ${participantError.message}`;
+                        // Fallback to loading user's existing chats if URL check fails
+                        chatInterfaceDiv.classList.remove('hidden');
+                        joinChatPreviewDiv.classList.add('hidden');
+                        await loadUserChats(); // loadUserChats will handle selecting the first available chat
+                    } else if (participantCheck && participantCheck.length > 0) {
+                        // Already a participant, switch to this chat directly
+                        chatInterfaceDiv.classList.remove('hidden');
+                        joinChatPreviewDiv.classList.add('hidden');
+                        await loadUserChats(); // loadUserChats will make sure sidebar is updated
+                        await switchChat(urlChatId); // Force switch to the URL chat
+                    } else {
+                        // Not a participant, show join UI
+                        chatInterfaceDiv.classList.add('hidden');
+                        await showJoinChatUI(urlChatId);
+                    }
+                } else {
+                    // No URL chat ID, just load user's existing chats
+                    chatInterfaceDiv.classList.remove('hidden');
+                    joinChatPreviewDiv.classList.add('hidden'); // Ensure hidden
+                    await loadUserChats();
+                }
             } else {
-                // User needs to set username, so chat setup remains hidden initially
-                sidebar.classList.add('hidden'); // Ensure sidebar is hidden until username is set
-                sidebarToggle.classList.add('hidden'); // Hide toggle button too
+                // User needs to set username, username setup remains visible
+                usernameSetupDiv.classList.remove('hidden'); // Ensure username setup is visible
+                chatInterfaceDiv.classList.add('hidden'); // Hide chat interface
+                joinChatPreviewDiv.classList.add('hidden'); // Hide join preview
+                sidebar.classList.add('hidden'); // Hide sidebar
+                sidebarToggle.classList.add('hidden'); // Hide toggle button
             }
+        }
+
+
+        // --- Run on DOM Content Loaded ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeApplicationUI();
         });
     </script>
 </body>
