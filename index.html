@@ -555,6 +555,9 @@
             messageElement.classList.add('message');
             messageElement.dataset.messageId = messageData.id; // Store message ID for deletion/reply
             messageElement.dataset.senderId = messageData.sender_local_user_id;
+            messageElement.dataset.messageContent = messageData.content; // Store content for reply
+            messageElement.dataset.mediaUrl = messageData.media_url; // Store media URL for reply
+            messageElement.dataset.mediaType = messageData.media_type; // Store media type for reply
 
             const isSender = (messageData.sender_local_user_id === localUserId);
             messageElement.classList.add(isSender ? 'sent' : 'received');
@@ -609,7 +612,7 @@
             const replyButton = document.createElement('button');
             replyButton.textContent = 'Reply';
             replyButton.classList.add('reply-btn');
-            replyButton.addEventListener('click', () => startReply(messageData));
+            // NO LONGER ATTACHING EVENT LISTENER HERE
             actionsDiv.appendChild(replyButton);
 
             // Delete button (only for sent messages by the current user)
@@ -617,7 +620,7 @@
                 const deleteButton = document.createElement('button');
                 deleteButton.textContent = 'Delete';
                 deleteButton.classList.add('delete-btn');
-                deleteButton.addEventListener('click', () => deleteMessage(messageData.id));
+                // NO LONGER ATTACHING EVENT LISTENER HERE EITHER
                 actionsDiv.appendChild(deleteButton);
             }
 
@@ -660,7 +663,11 @@
          * Deletes a message from the database and UI.
          * @param {string} messageId - The ID of the message to delete.
          */
-        async function deleteMessage(messageId) {
+        async function deleteMessage(messageId, senderId) { // Added senderId parameter
+            if (senderId !== localUserId) { // Basic client-side check to prevent deleting others' messages
+                console.warn('Attempted to delete a message not sent by the current user.');
+                return;
+            }
             if (!confirm("Are you sure you want to delete this message?")) {
                 return;
             }
@@ -1197,6 +1204,39 @@
                 await joinChatFromLink(chatIdToJoin);
             }
         });
+
+        // NEW: Event Delegation for Message Actions (Reply and Delete)
+        chatWindow.addEventListener('click', async (event) => {
+            const target = event.target;
+
+            // Handle Reply Button
+            if (target.classList.contains('reply-btn')) {
+                const messageElement = target.closest('.message');
+                if (messageElement) {
+                    // Reconstruct messageData from dataset attributes
+                    const messageData = {
+                        id: messageElement.dataset.messageId,
+                        sender_name: messageElement.querySelector('strong').textContent.replace(': ', ''),
+                        content: messageElement.dataset.messageContent !== 'null' ? messageElement.dataset.messageContent : null,
+                        media_url: messageElement.dataset.mediaUrl !== 'null' ? messageElement.dataset.mediaUrl : null,
+                        media_type: messageElement.dataset.mediaType !== 'null' ? messageElement.dataset.mediaType : null,
+                        sender_local_user_id: messageElement.dataset.senderId // Ensure sender ID is passed for consistency
+                    };
+                    startReply(messageData);
+                }
+            }
+
+            // Handle Delete Button
+            if (target.classList.contains('delete-btn')) {
+                const messageElement = target.closest('.message');
+                if (messageElement) {
+                    const messageId = messageElement.dataset.messageId;
+                    const senderId = messageElement.dataset.senderId; // Get sender ID from dataset
+                    deleteMessage(messageId, senderId);
+                }
+            }
+        });
+
 
         // --- Main Application Initialization Logic ---
         // This function orchestrates which UI is shown on load/username set/hashchange
