@@ -546,6 +546,8 @@
 
             currentChatId = newChatId;
             // Update URL hash for the "hashtag link" functionality
+            // This will trigger a hashchange event, which calls initializeApplicationUI,
+            // but the conditional check in initializeApplicationUI will prevent infinite loops.
             window.location.hash = `#chat/${currentChatId}`;
 
             // Visually mark the active chat in the sidebar
@@ -569,8 +571,10 @@
 
         /**
          * Fetches and displays the list of chats the user is a part of.
+         * This function now takes an optional `chatIdToPrioritize` to ensure the sidebar correctly
+         * highlights and the main chat area shows the chat from the URL hash.
          */
-        async function loadUserChats() {
+        async function loadUserChats(chatIdToPrioritize = null) {
             if (!localUserId) {
                 chatList.innerHTML = '<li>Please set your username to see chats.</li>';
                 chatCountSpan.textContent = '0';
@@ -624,26 +628,26 @@
             });
             chatCountSpan.textContent = chats.length;
 
-            // After loading user chats, check the URL hash again to ensure correct chat is active
-            const urlChatId = window.location.hash.startsWith('#chat/') ? window.location.hash.substring(6) : null;
-            const isUrlChatParticipant = urlChatId && chats.some(chat => chat.id === urlChatId);
+            // Determine which chat to display: prioritize `chatIdToPrioritize`, then `currentChatId`, then first in list
+            let targetChatId = null;
+            if (chatIdToPrioritize && chats.some(chat => chat.id === chatIdToPrioritize)) {
+                targetChatId = chatIdToPrioritize;
+            } else if (currentChatId && chats.some(chat => chat.id === currentChatId)) {
+                targetChatId = currentChatId;
+            } else if (chats.length > 0) {
+                targetChatId = chats[0].id;
+            }
 
-            if (isUrlChatParticipant) {
-                // If the URL has a chat ID and the user is a participant, switch to it
-                switchChat(urlChatId);
-            } else if (!currentChatId || !chats.some(chat => chat.id === currentChatId)) {
-                // If no chat is currently selected, or previously selected chat is no longer in user's list,
-                // switch to the first chat in their list (if any).
-                if (chats.length > 0) {
-                    switchChat(chats[0].id);
-                } else {
-                    currentChatId = null;
-                    loadChatDetails(null);
-                    loadMessages(null);
-                    if (realtimeSubscription) {
-                        supabase.removeChannel(realtimeSubscription);
-                        realtimeSubscription = null;
-                    }
+            if (targetChatId) {
+                await switchChat(targetChatId);
+            } else {
+                // If no target chat, clear current chat view
+                currentChatId = null;
+                loadChatDetails(null);
+                loadMessages(null);
+                if (realtimeSubscription) {
+                    supabase.removeChannel(realtimeSubscription);
+                    realtimeSubscription = null;
                 }
             }
         }
@@ -687,7 +691,7 @@
                 newChatNameInput.value = '';
                 newChatDescriptionInput.value = '';
 
-                await loadUserChats(); // Refresh chat list and handle switching
+                await loadUserChats(newChatId); // Refresh chat list and immediately switch to the new chat
                 
                 // Close modal after a short delay
                 setTimeout(() => {
@@ -722,11 +726,11 @@
                 joinChatPreviewDescription.textContent = chatDetails.description || 'No description provided.';
                 joinChatPreviewButton.dataset.chatIdToJoin = chatId; // Store chat ID for join button
             } else {
-                // If chat not found or error loading, go back to main application flow
+                // If chat not found or error loading, revert to username setup or default chat view
                 joinChatPreviewDiv.classList.add('hidden');
                 // Re-initialize to determine the correct default view (username setup or user's chats)
-                await initializeApplicationUI();
-                statusMessageDiv.textContent = 'Group chat not found or accessible.'; // Display a more general error
+                await initializeApplicationUI(null); // Pass null to avoid re-processing a bad URL hash
+                statusMessageDiv.textContent = 'Group chat not found or accessible. Please check the link.';
             }
         }
 
@@ -751,7 +755,7 @@
 
                 // Refresh sidebar to include the new chat and auto-switch to it
                 // loadUserChats will call switchChat internally for the correct chat
-                await loadUserChats(); 
+                await loadUserChats(chatId); // Pass the newly joined chat ID to prioritize it
                 console.log(`Successfully joined chat ${chatId}`);
 
             } catch (error) {
@@ -775,7 +779,7 @@
                     localStorage.setItem('localUserId', localUserId);
                 }
 
-                // Call the unified initialization flow which will now handle URL hash checks
+                // Call the unified initialization flow
                 await initializeApplicationUI();
             } else {
                 statusMessageDiv.textContent = 'Please enter a username.';
@@ -828,6 +832,8 @@
         // --- Main Application Initialization Logic ---
         // This function orchestrates which UI is shown on load/username set/hashchange
         async function initializeApplicationUI() {
+            console.log("initializeApplicationUI called. Current hash:", window.location.hash);
+
             // Ensure main container layout
             document.querySelector('.container').style.display = 'flex';
             document.querySelector('.container').style.flexDirection = 'column';
@@ -841,6 +847,7 @@
                 sidebarToggle.classList.remove('hidden'); // Show sidebar toggle
 
                 if (urlChatId) {
+                    console.log("URL has chat ID. Checking participation...");
                     // Check if already a participant of this URL chat
                     const { data: participantCheck, error: participantError } = await supabase
                         .from('chat_participants')
@@ -850,28 +857,30 @@
 
                     if (participantError) {
                         console.error('Error checking participant status for URL chat:', participantError.message);
-                        // If there's an error checking, assume they're not in it or it's an invalid chat, and show join UI.
-                        // Or, for robustness, fallback to their existing chats. For now, let's show join UI if not clearly in it.
+                        // If there's an error checking, show join UI (might be an invalid ID or RLS issue)
                         chatInterfaceDiv.classList.add('hidden');
-                        await showJoinChatUI(urlChatId); // Attempt to show join UI even on error
+                        await showJoinChatUI(urlChatId);
                     } else if (participantCheck && participantCheck.length > 0) {
+                        console.log("User is already a participant. Switching to chat.");
                         // Already a participant, switch to this chat directly
                         chatInterfaceDiv.classList.remove('hidden');
                         joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
-                        await loadUserChats(); // loadUserChats will make sure sidebar is updated and chat is selected
-                        // No explicit switchChat needed here, loadUserChats with hash will handle it.
+                        await loadUserChats(urlChatId); // Load chats and prioritize the URL chat
                     } else {
+                        console.log("User is NOT a participant. Showing join UI.");
                         // Not a participant, show join UI
                         chatInterfaceDiv.classList.add('hidden');
                         await showJoinChatUI(urlChatId);
                     }
                 } else {
+                    console.log("No URL chat ID. Loading user's existing chats.");
                     // No URL chat ID, just load user's existing chats
                     chatInterfaceDiv.classList.remove('hidden');
                     joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
                     await loadUserChats();
                 }
             } else {
+                console.log("User needs to set username.");
                 // User needs to set username, username setup remains visible
                 usernameSetupDiv.classList.remove('hidden'); // Ensure username setup is visible
                 chatInterfaceDiv.classList.add('hidden'); // Hide chat interface
