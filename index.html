@@ -74,7 +74,8 @@
         // --- Global Variables (for client-side user and chat data) ---
         let localUserId = localStorage.getItem('localUserId');
         let username = localStorage.getItem('username');
-        const CHAT_ID = 'YOUR_DEFAULT_CHAT_ID'; // Replace with a default chat ID or derive from URL
+        const CHAT_ID = 'YOUR_DEFAULT_CHAT_ID'; // IMPORTANT: Replace with a valid UUID for an existing chat in your Supabase `group_chats` table.
+                                                 // Example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
                                                  // For a real app, you'd parse this from the URL (e.g., #chat/uuid)
                                                  // or allow creating new chats. For this example, it's static.
 
@@ -299,18 +300,20 @@
         }
 
         // --- Event Listeners ---
-        setUsernameButton.addEventListener('click', () => {
+        setUsernameButton.addEventListener('click', async () => { // Fixed: Added 'async' here
             const enteredUsername = usernameInput.value.trim();
             if (enteredUsername) {
                 username = enteredUsername;
                 localStorage.setItem('username', username);
+
                 if (!localUserId) {
                     localUserId = generateUUID();
                     localStorage.setItem('localUserId', localUserId);
                 }
+
                 usernameSetupDiv.classList.add('hidden');
                 chatInterfaceDiv.classList.remove('hidden');
-                initChat(); // Initialize chat after username is set
+                await initChat(); // Initialize chat after username is set
             } else {
                 statusMessageDiv.textContent = 'Please enter a username.';
             }
@@ -327,21 +330,15 @@
             mediaUploadInput.click(); // Trigger file input click
         });
 
-        // --- Initialization ---
-        async function initChat() {
-            await loadChatDetails();
-            await ensureParticipant();
-            await loadMessages();
-            subscribeToMessages();
-        }
-
-        // Check if username is already set in local storage on page load
-        if (localUserId && username) {
-            usernameSetupDiv.classList.add('hidden');
-            chatInterfaceDiv.classList.remove('hidden');
-            initChat();
-        }
-        // If not set, the username setup div remains visible.
+        // --- Initialization on DOM Load ---
+        document.addEventListener('DOMContentLoaded', async () => { // Fixed: Added 'async' here
+            if (localUserId && username) {
+                usernameSetupDiv.classList.add('hidden');
+                chatInterfaceDiv.classList.remove('hidden');
+                await initChat(); // Initialize chat if user data exists
+            }
+            // If not set, the username setup div remains visible.
+        });
     </script>
 </body>
 </html>
