@@ -101,7 +101,16 @@
             background-color: #e9ecef;
             border-radius: 4px;
         }
-        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 15px; max-width: 70%; word-wrap: break-word; position: relative; }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 70%;
+            word-wrap: break-word;
+            position: relative;
+            /* Added padding-bottom to make space for actions */
+            padding-bottom: 30px; /* Give more space at the bottom for actions */
+        }
         .message.sent { background-color: #dcf8c6; float: right; clear: both; }
         .message.received { background-color: #ffffff; float: left; clear: both; border: 1px solid #eee; }
         .message strong { color: #075e54; }
@@ -112,10 +121,9 @@
         .message .message-actions {
             position: absolute;
             bottom: 5px;
-            right: 15px; /* Adjust as needed */
-            /* FIX: Changed from display: none; to flex for immediate visibility */
-            /* If you want hover, you'd need more complex JS for dynamic elements */
-            display: flex; /* Always visible for now, or use JS to manage hover */
+            /* Adjusted right position */
+            right: 50px; /* Move it further to the left to avoid timestamp */
+            display: flex;
             font-size: 0.7em;
             gap: 5px;
             background-color: rgba(255, 255, 255, 0.8); /* Slight background for readability */
@@ -127,9 +135,6 @@
             left: 15px; /* Align to the left for sent messages */
             right: auto;
         }
-        /* Removed .message:hover .message-actions { display: flex; } */
-        /* as the buttons are now always displayed for simplicity of the fix */
-
         .message-actions button {
             background: none;
             border: none;
@@ -356,6 +361,7 @@
                 max-width: 90%; /* Allow messages to take more width */
                 font-size: 0.9em;
                 padding: 6px 10px; /* Slightly reduced padding */
+                padding-bottom: 30px; /* Ensure mobile messages also have space */
             }
 
             #message-input-area {
