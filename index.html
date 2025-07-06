@@ -113,17 +113,23 @@
             position: absolute;
             bottom: 5px;
             right: 15px; /* Adjust as needed */
-            display: none; /* Hidden by default, show on hover */
+            /* FIX: Changed from display: none; to flex for immediate visibility */
+            /* If you want hover, you'd need more complex JS for dynamic elements */
+            display: flex; /* Always visible for now, or use JS to manage hover */
             font-size: 0.7em;
             gap: 5px;
+            background-color: rgba(255, 255, 255, 0.8); /* Slight background for readability */
+            padding: 2px 5px;
+            border-radius: 5px;
+            box-shadow: 0 0 3px rgba(0,0,0,0.1);
         }
         .message.sent .message-actions {
             left: 15px; /* Align to the left for sent messages */
             right: auto;
         }
-        .message:hover .message-actions {
-            display: flex;
-        }
+        /* Removed .message:hover .message-actions { display: flex; } */
+        /* as the buttons are now always displayed for simplicity of the fix */
+
         .message-actions button {
             background: none;
             border: none;
@@ -555,9 +561,11 @@
             messageElement.classList.add('message');
             messageElement.dataset.messageId = messageData.id; // Store message ID for deletion/reply
             messageElement.dataset.senderId = messageData.sender_local_user_id;
-            messageElement.dataset.messageContent = messageData.content; // Store content for reply
-            messageElement.dataset.mediaUrl = messageData.media_url; // Store media URL for reply
-            messageElement.dataset.mediaType = messageData.media_type; // Store media type for reply
+            // Store content and media info in dataset for event delegation to access
+            messageElement.dataset.messageContent = messageData.content !== null ? messageData.content : '';
+            messageElement.dataset.mediaUrl = messageData.media_url !== null ? messageData.media_url : '';
+            messageElement.dataset.mediaType = messageData.media_type !== null ? messageData.media_type : '';
+
 
             const isSender = (messageData.sender_local_user_id === localUserId);
             messageElement.classList.add(isSender ? 'sent' : 'received');
@@ -612,7 +620,6 @@
             const replyButton = document.createElement('button');
             replyButton.textContent = 'Reply';
             replyButton.classList.add('reply-btn');
-            // NO LONGER ATTACHING EVENT LISTENER HERE
             actionsDiv.appendChild(replyButton);
 
             // Delete button (only for sent messages by the current user)
@@ -620,11 +627,10 @@
                 const deleteButton = document.createElement('button');
                 deleteButton.textContent = 'Delete';
                 deleteButton.classList.add('delete-btn');
-                // NO LONGER ATTACHING EVENT LISTENER HERE EITHER
                 actionsDiv.appendChild(deleteButton);
             }
 
-            messageElement.appendChild(actionsDiv);
+            messageElement.appendChild(actionsDiv); // Ensure this is appended
 
             chatWindow.appendChild(messageElement);
             chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to bottom
@@ -662,8 +668,9 @@
         /**
          * Deletes a message from the database and UI.
          * @param {string} messageId - The ID of the message to delete.
+         * @param {string} senderId - The local user ID of the message sender.
          */
-        async function deleteMessage(messageId, senderId) { // Added senderId parameter
+        async function deleteMessage(messageId, senderId) {
             if (senderId !== localUserId) { // Basic client-side check to prevent deleting others' messages
                 console.warn('Attempted to delete a message not sent by the current user.');
                 return;
@@ -1216,11 +1223,11 @@
                     // Reconstruct messageData from dataset attributes
                     const messageData = {
                         id: messageElement.dataset.messageId,
-                        sender_name: messageElement.querySelector('strong').textContent.replace(': ', ''),
-                        content: messageElement.dataset.messageContent !== 'null' ? messageElement.dataset.messageContent : null,
-                        media_url: messageElement.dataset.mediaUrl !== 'null' ? messageElement.dataset.mediaUrl : null,
-                        media_type: messageElement.dataset.mediaType !== 'null' ? messageElement.dataset.mediaType : null,
-                        sender_local_user_id: messageElement.dataset.senderId // Ensure sender ID is passed for consistency
+                        sender_name: messageElement.querySelector('strong') ? messageElement.querySelector('strong').textContent.replace(': ', '') : 'Unknown Sender', // Robust handling for sender name
+                        content: messageElement.dataset.messageContent !== '' ? messageElement.dataset.messageContent : null,
+                        media_url: messageElement.dataset.mediaUrl !== '' ? messageElement.dataset.mediaUrl : null,
+                        media_type: messageElement.dataset.mediaType !== '' ? messageElement.dataset.mediaType : null,
+                        sender_local_user_id: messageElement.dataset.senderId
                     };
                     startReply(messageData);
                 }
@@ -1231,7 +1238,7 @@
                 const messageElement = target.closest('.message');
                 if (messageElement) {
                     const messageId = messageElement.dataset.messageId;
-                    const senderId = messageElement.dataset.senderId; // Get sender ID from dataset
+                    const senderId = messageElement.dataset.senderId;
                     deleteMessage(messageId, senderId);
                 }
             }
