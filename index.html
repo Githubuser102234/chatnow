@@ -207,7 +207,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
     <script>
-        // Supabase client instance will be defined inside DOMContentLoaded
+        // --- Supabase Client Declaration ---
+        // Declared globally, but assigned only after Supabase library is loaded.
         let supabase;
 
         // --- DOM Elements ---
@@ -325,7 +326,8 @@
          */
         function subscribeToMessages(chatId) {
             if (realtimeSubscription) {
-                supabase.removeChannel(realtimeSubscription); // Unsubscribe from previous channel
+                // Ensure we unsubscribe from the previous channel if one exists
+                supabase.removeChannel(realtimeSubscription);
             }
 
             if (!chatId) return; // Don't subscribe if no chat is selected
@@ -536,6 +538,14 @@
             if (chatIds.length === 0) {
                 chatList.innerHTML = '<li>No chats found. Create one!</li>';
                 chatCountSpan.textContent = '0';
+                // If no chats, ensure no currentChatId is set and unsubscribe
+                currentChatId = null;
+                if (realtimeSubscription) {
+                    supabase.removeChannel(realtimeSubscription);
+                    realtimeSubscription = null;
+                }
+                loadChatDetails(null); // Clear chat details
+                loadMessages(null); // Clear messages
                 return;
             }
 
@@ -561,8 +571,27 @@
             chatCountSpan.textContent = chats.length;
 
             // If no chat is currently selected, and there are chats available, select the first one.
-            if (!currentChatId && chats.length > 0) {
+            // Or if a chat is in the URL hash, prioritize that.
+            const urlChatId = window.location.hash.startsWith('#chat/') ? window.location.hash.substring(6) : null;
+
+            if (urlChatId && chats.some(chat => chat.id === urlChatId)) {
+                switchChat(urlChatId);
+            } else if (!currentChatId && chats.length > 0) {
                 switchChat(chats[0].id);
+            } else if (currentChatId && !chats.some(chat => chat.id === currentChatId)) {
+                 // If the previously active chat is no longer in the user's list (e.g., deleted)
+                 // Switch to the first available chat or clear if none
+                if (chats.length > 0) {
+                    switchChat(chats[0].id);
+                } else {
+                    currentChatId = null;
+                    loadChatDetails(null);
+                    loadMessages(null);
+                    if (realtimeSubscription) {
+                        supabase.removeChannel(realtimeSubscription);
+                        realtimeSubscription = null;
+                    }
+                }
             }
         }
 
@@ -606,8 +635,7 @@
                 newChatDescriptionInput.value = '';
 
                 // Refresh chat list and switch to the new chat
-                await loadUserChats();
-                await switchChat(newChatId);
+                await loadUserChats(); // This will refresh the sidebar and trigger switchChat if needed
 
                 // Close modal after a short delay
                 setTimeout(() => {
@@ -663,7 +691,6 @@
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('hidden');
             sidebarToggle.classList.toggle('active'); // Change color/state of toggle button
-            // Optionally, adjust main-content margin if sidebar is not absolute
         });
 
         // Create new chat button (opens modal)
@@ -687,38 +714,24 @@
         async function initChat() {
             // This function is called after the username is set (or retrieved)
             // It manages the core chat setup.
-            await loadUserChats(); // Load chats for the sidebar
-            // The `switchChat` function within `loadUserChats` will handle
-            // loading messages and subscribing for the first chat.
+            await loadUserChats(); // Load chats for the sidebar, which will also handle initial chat selection
         }
 
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize Supabase client *inside* DOMContentLoaded to ensure Supabase object is available.
+            // IMPORTANT: Initialize Supabase client *inside* DOMContentLoaded
+            // This ensures Supabase object is available after the library loads.
             const SUPABASE_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA';
             supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            // Check URL hash for direct chat links
-            if (window.location.hash.startsWith('#chat/')) {
-                currentChatId = window.location.hash.substring(6); // Get UUID after #chat/
-                // If a chat ID is in the URL, try to bypass username setup if already known
-                if (localUserId && username) {
-                    usernameSetupDiv.classList.add('hidden');
-                    chatInterfaceDiv.classList.remove('hidden');
-                    sidebar.classList.remove('hidden');
-                    sidebarToggle.classList.remove('hidden');
-                    await initChat(); // Load chats, which will then switch to currentChatId
-                }
-                // If username is not set, the username setup will remain visible,
-                // and once set, initChat will run and switch to the URL hash chat.
-            } else if (localUserId && username) {
-                // If no hash but user is known, go straight to chat interface
+            // Check if user data exists in local storage
+            if (localUserId && username) {
                 usernameSetupDiv.classList.add('hidden');
                 chatInterfaceDiv.classList.remove('hidden');
                 sidebar.classList.remove('hidden');
                 sidebarToggle.classList.remove('hidden');
-                await initChat();
+                await initChat(); // Initialize chat if user data exists
             } else {
                 // User needs to set username, so chat setup remains hidden initially
                 sidebar.classList.add('hidden'); // Ensure sidebar is hidden until username is set
