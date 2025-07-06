@@ -101,18 +101,95 @@
             background-color: #e9ecef;
             border-radius: 4px;
         }
-        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 15px; max-width: 70%; word-wrap: break-word; }
+        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 15px; max-width: 70%; word-wrap: break-word; position: relative; }
         .message.sent { background-color: #dcf8c6; float: right; clear: both; }
         .message.received { background-color: #ffffff; float: left; clear: both; border: 1px solid #eee; }
         .message strong { color: #075e54; }
         .message .timestamp { font-size: 0.75em; color: #777; display: block; text-align: right; margin-top: 5px; }
         .message img, .message video { max-width: 100%; height: auto; border-radius: 5px; margin-top: 5px; display: block; }
+
+        /* Reply and Delete Buttons */
+        .message .message-actions {
+            position: absolute;
+            bottom: 5px;
+            right: 15px; /* Adjust as needed */
+            display: none; /* Hidden by default, show on hover */
+            font-size: 0.7em;
+            gap: 5px;
+        }
+        .message.sent .message-actions {
+            left: 15px; /* Align to the left for sent messages */
+            right: auto;
+        }
+        .message:hover .message-actions {
+            display: flex;
+        }
+        .message-actions button {
+            background: none;
+            border: none;
+            color: #007bff;
+            cursor: pointer;
+            padding: 0 5px;
+            font-size: inherit;
+        }
+        .message-actions button:hover {
+            text-decoration: underline;
+        }
+        .message-actions button.delete-btn {
+            color: #dc3545;
+        }
+
+
+        /* Reply-to Message Preview */
+        .reply-preview {
+            background-color: rgba(0, 0, 0, 0.05);
+            border-left: 3px solid #007bff;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: #555;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .reply-preview strong {
+            color: #075e54;
+        }
+        .reply-preview-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            background-color: #e2e6ea;
+            border-left: 3px solid #007bff;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .reply-preview-area .close-reply {
+            background: none;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            color: #888;
+        }
+        .reply-preview-area .close-reply:hover {
+            color: #333;
+        }
+
+
         #message-input-area {
             display: flex;
             gap: 10px;
             margin-top: 10px;
             box-sizing: border-box;
             width: 100%; /* Ensure it takes full width */
+            flex-direction: column; /* Stack reply area and input */
+        }
+        #message-input-container { /* Wrapper for input and buttons */
+            display: flex;
+            gap: 10px;
+            width: 100%;
         }
         #message-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         #send-button, #media-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; }
@@ -282,6 +359,10 @@
                 margin: 0; /* Remove any external margins */
                 padding: 0; /* Remove any external paddings */
             }
+            #message-input-container {
+                flex-wrap: wrap;
+                width: 100%;
+            }
             #message-input {
                 flex-basis: 100%; /* Take full width */
                 margin-bottom: 5px; /* Space from buttons */
@@ -346,10 +427,16 @@
                 <div id="chat-window">
                     </div>
                 <div id="message-input-area">
-                    <input type="text" id="message-input" placeholder="Type your message...">
-                    <input type="file" id="media-upload" accept="image/*,video/*" class="hidden">
-                    <button id="media-button">Attach Media</button>
-                    <button id="send-button">Send</button>
+                    <div id="reply-preview-area" class="hidden">
+                        <span id="reply-to-content"></span>
+                        <button class="close-reply">&times;</button>
+                    </div>
+                    <div id="message-input-container">
+                        <input type="text" id="message-input" placeholder="Type your message...">
+                        <input type="file" id="media-upload" accept="image/*,video/*" class="hidden">
+                        <button id="media-button">Attach Media</button>
+                        <button id="send-button">Send</button>
+                    </div>
                 </div>
                 <div id="status-message" style="color: red; margin-top: 10px;"></div>
             </div>
@@ -414,12 +501,17 @@
         const joinChatPreviewButton = document.getElementById('join-chat-button');
         const joinChatStatusDiv = document.getElementById('join-chat-status');
 
+        // Reply UI elements
+        const replyPreviewArea = document.getElementById('reply-preview-area');
+        const replyToContentSpan = document.getElementById('reply-to-content');
+        const closeReplyButton = replyPreviewArea.querySelector('.close-reply');
 
         // --- Global Variables (for client-side user and chat data) ---
         let localUserId = localStorage.getItem('localUserId');
         let username = localStorage.getItem('username');
         let currentChatId = null; // Will be set when a chat is selected/created
         let realtimeSubscription = null; // To manage the real-time subscription
+        let replyingToMessageId = null; // Stores the ID of the message being replied to
 
         // --- Helper Functions ---
 
@@ -435,15 +527,54 @@
         }
 
         /**
+         * Fetches a single message's details.
+         * @param {string} messageId - The ID of the message to fetch.
+         * @returns {object} The message data or null if not found/error.
+         */
+        async function getMessageDetails(messageId) {
+            if (!messageId) return null;
+            const { data, error } = await supabase
+                .from('messages')
+                .select('sender_name, content, media_url, media_type')
+                .eq('id', messageId)
+                .single();
+
+            if (error) {
+                console.error('Error fetching message details:', error.message);
+                return null;
+            }
+            return data;
+        }
+
+        /**
          * Displays a message in the chat window.
          * @param {object} messageData - The message object from Supabase.
          */
-        function displayMessage(messageData) {
+        async function displayMessage(messageData) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message');
+            messageElement.dataset.messageId = messageData.id; // Store message ID for deletion/reply
+            messageElement.dataset.senderId = messageData.sender_local_user_id;
 
             const isSender = (messageData.sender_local_user_id === localUserId);
             messageElement.classList.add(isSender ? 'sent' : 'received');
+
+            // --- Reply-to content display ---
+            if (messageData.replied_to_message_id) {
+                const repliedTo = await getMessageDetails(messageData.replied_to_message_id);
+                if (repliedTo) {
+                    const replyPreview = document.createElement('div');
+                    replyPreview.classList.add('reply-preview');
+                    let repliedContent = repliedTo.content;
+                    if (repliedTo.media_url) {
+                        repliedContent = '[attachment]';
+                    } else if (!repliedContent) {
+                        repliedContent = '[empty message]';
+                    }
+                    replyPreview.innerHTML = `Replying to <strong>${repliedTo.sender_name}</strong>: ${repliedContent}`;
+                    messageElement.appendChild(replyPreview);
+                }
+            }
 
             const senderNameStrong = document.createElement('strong');
             senderNameStrong.textContent = `${messageData.sender_name}: `;
@@ -470,9 +601,93 @@
             timestampSpan.textContent = new Date(messageData.created_at).toLocaleTimeString();
             messageElement.appendChild(timestampSpan);
 
+            // --- Message Actions (Reply, Delete) ---
+            const actionsDiv = document.createElement('div');
+            actionsDiv.classList.add('message-actions');
+
+            // Reply button
+            const replyButton = document.createElement('button');
+            replyButton.textContent = 'Reply';
+            replyButton.classList.add('reply-btn');
+            replyButton.addEventListener('click', () => startReply(messageData));
+            actionsDiv.appendChild(replyButton);
+
+            // Delete button (only for sent messages by the current user)
+            if (isSender) {
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.classList.add('delete-btn');
+                deleteButton.addEventListener('click', () => deleteMessage(messageData.id));
+                actionsDiv.appendChild(deleteButton);
+            }
+
+            messageElement.appendChild(actionsDiv);
+
             chatWindow.appendChild(messageElement);
             chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to bottom
         }
+
+        /**
+         * Sets up the reply preview area above the message input.
+         * @param {object} messageData - The message object to reply to.
+         */
+        async function startReply(messageData) {
+            replyingToMessageId = messageData.id;
+            const repliedToSenderName = messageData.sender_name;
+            let repliedToContent = messageData.content;
+
+            if (messageData.media_url) {
+                repliedToContent = '[attachment]';
+            } else if (!repliedToContent) {
+                repliedToContent = '[empty message]';
+            }
+
+            replyToContentSpan.innerHTML = `Replying to <strong>${repliedToSenderName}</strong>: ${repliedToContent}`;
+            replyPreviewArea.classList.remove('hidden');
+            messageInput.focus();
+        }
+
+        /**
+         * Clears the reply-to state.
+         */
+        function clearReply() {
+            replyingToMessageId = null;
+            replyPreviewArea.classList.add('hidden');
+            replyToContentSpan.textContent = '';
+        }
+
+        /**
+         * Deletes a message from the database and UI.
+         * @param {string} messageId - The ID of the message to delete.
+         */
+        async function deleteMessage(messageId) {
+            if (!confirm("Are you sure you want to delete this message?")) {
+                return;
+            }
+
+            statusMessageDiv.textContent = 'Deleting message...';
+            const { error } = await supabase
+                .from('messages')
+                .delete()
+                .eq('id', messageId)
+                .eq('sender_local_user_id', localUserId); // Ensure only self-deletion
+
+            if (error) {
+                console.error('Error deleting message:', error.message);
+                statusMessageDiv.textContent = `Error deleting message: ${error.message}`;
+            } else {
+                console.log('Message deleted:', messageId);
+                // The real-time subscription will handle removing it from others' UIs
+                // For the sender, we can remove it immediately from the DOM
+                const messageElement = document.querySelector(`.message[data-message-id="${messageId}"]`);
+                if (messageElement) {
+                    messageElement.remove();
+                }
+                statusMessageDiv.textContent = 'Message deleted.';
+            }
+            setTimeout(() => statusMessageDiv.textContent = '', 3000);
+        }
+
 
         /**
          * Loads initial messages for the current chat.
@@ -493,7 +708,8 @@
                 statusMessageDiv.textContent = `Error loading messages: ${error.message}`;
             } else {
                 chatWindow.innerHTML = ''; // Clear existing messages
-                data.forEach(displayMessage);
+                // Use Promise.all to await all displayMessage calls for reply-to content
+                await Promise.all(data.map(msg => displayMessage(msg)));
             }
         }
 
@@ -515,6 +731,17 @@
                     (payload) => {
                         console.log('New message received!', payload.new);
                         displayMessage(payload.new);
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: 'DELETE', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+                    (payload) => {
+                        console.log('Message deleted!', payload.old.id);
+                        const messageElement = document.querySelector(`.message[data-message-id="${payload.old.id}"]`);
+                        if (messageElement) {
+                            messageElement.remove();
+                        }
                     }
                 )
                 .subscribe();
@@ -569,16 +796,19 @@
                 return;
             }
 
+            const messageToInsert = {
+                chat_id: currentChatId,
+                sender_local_user_id: localUserId,
+                sender_name: username,
+                content: messageContent || null, // Send null if only media
+                media_url: mediaUrl || null,
+                media_type: mediaType || null,
+                replied_to_message_id: replyingToMessageId // Include reply ID if set
+            };
+
             const { error } = await supabase
                 .from('messages')
-                .insert({
-                    chat_id: currentChatId,
-                    sender_local_user_id: localUserId,
-                    sender_name: username,
-                    content: messageContent || null, // Send null if only media
-                    media_url: mediaUrl || null,
-                    media_type: mediaType || null
-                });
+                .insert(messageToInsert);
 
             if (error) {
                 console.error('Error sending message:', error.message);
@@ -586,6 +816,7 @@
             } else {
                 messageInput.value = '';
                 mediaUploadInput.value = ''; // Clear file input
+                clearReply(); // Clear reply state after sending
                 statusMessageDiv.textContent = '';
             }
         }
@@ -670,6 +901,8 @@
             if (newChatId === currentChatId) return; // Already in this chat
 
             currentChatId = newChatId;
+            clearReply(); // Clear any pending reply when switching chats
+
             // Update URL hash for the "hashtag link" functionality
             // This will trigger a hashchange event, which calls initializeApplicationUI,
             // but the conditional check in initializeApplicationUI will prevent infinite loops.
@@ -930,6 +1163,9 @@
         mediaButton.addEventListener('click', () => {
             mediaUploadInput.click();
         });
+
+        // Close reply preview
+        closeReplyButton.addEventListener('click', clearReply);
 
         // Sidebar toggle
         sidebarToggle.addEventListener('click', () => {
