@@ -1387,10 +1387,10 @@
             profileStatusDiv.textContent = 'Uploading profile picture...';
             try {
                 // Delete old PFP if it's not the default
-                if (userPfpUrl && userPfpUrl !== 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png' && userPfpUrl.includes('profile_pictures')) {
-                    const oldFilePath = userPfpUrl.split('/profile_pictures/')[1];
+                if (userPfpUrl && userPfpUrl !== 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png' && userPfpUrl.includes('profilepictures')) {
+                    const oldFilePath = userPfpUrl.split('/profilepictures/')[1];
                     const { error: deleteError } = await supabase.storage
-                        .from('profile_pictures')
+                        .from('profilepictures')
                         .remove([oldFilePath]);
                     if (deleteError) {
                         console.warn('Error deleting old profile picture:', deleteError.message);
@@ -1401,13 +1401,13 @@
 
                 const filePath = `${localUserId}/${Date.now()}_${file.name}`;
                 const { data, error } = await supabase.storage
-                    .from('profile_pictures')
+                    .from('profilepictures')
                     .upload(filePath, file);
 
                 if (error) throw error;
 
                 const { data: publicUrlData } = supabase.storage
-                    .from('profile_pictures')
+                    .from('profilepictures')
                     .getPublicUrl(filePath);
 
                 userPfpUrl = publicUrlData.publicUrl;
