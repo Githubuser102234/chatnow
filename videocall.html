@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Supabase Video Call</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    video {
+      width: 45%;
+      margin: 10px;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+    button {
+      padding: 12px 25px;
+      font-size: 18px;
+      margin: 15px 10px;
+      cursor: pointer;
+      border-radius: 6px;
+      border: none;
+      background-color: #2d89ef;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #1b5fbd;
+    }
+  </style>
+</head>
+<body>
+  <h1>Supabase 1-on-1 Video Call</h1>
+
+  <video id="localVideo" autoplay muted playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+  <br />
+  <button id="startCall">Start Call</button>
+  <button id="joinCall">Join Call</button>
+
+  <!-- Supabase JS client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+  <script>
+    const SUPABASE_URL = "https://ahsrsrkzmphbhecishuc.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // your anon key here
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const startCallButton = document.getElementById('startCall');
+    const joinCallButton = document.getElementById('joinCall');
+
+    let localStream;
+    let peerConnection;
+    const servers = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
+
+    // Use hash from URL as call room ID
+    const callId = window.location.hash.substring(1) || "defaultRoom";
+
+    async function setupMedia() {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideo.srcObject = localStream;
+    }
+
+    async function setupPeerConnection() {
+      peerConnection = new RTCPeerConnection(servers);
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      peerConnection.ontrack = (event) => {
+        remoteVideo.srcObject = event.streams[0];
+      };
+    }
+
+    startCallButton.onclick = async () => {
+      await setupMedia();
+      await setupPeerConnection();
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      await supabase
+        .from('calls')
+        .upsert({ id: callId, offer: offer });
+
+      peerConnection.onicecandidate = async (event) => {
+        if (event.candidate) {
+          await supabase.from('candidates').insert({
+            call_id: callId,
+            candidate: event.candidate.toJSON(),
+            role: 'caller'
+          });
+        }
+      };
+
+      supabase
+        .channel('call-' + callId)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'calls' }, async payload => {
+          if (payload.new.answer && !peerConnection.currentRemoteDescription) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.new.answer));
+          }
+        })
+        .subscribe();
+
+      supabase
+        .channel('cand-' + callId)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'candidates', filter: `call_id=eq.${callId}` }, payload => {
+          if (payload.new.role === 'callee') {
+            const candidate = new RTCIceCandidate(payload.new.candidate);
+            peerConnection.addIceCandidate(candidate);
+          }
+        })
+        .subscribe();
+    };
+
+    joinCallButton.onclick = async () => {
+      await setupMedia();
+      await setupPeerConnection();
+
+      const { data: offerData } = await supabase.from('calls').select('offer').eq('id', callId).single();
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offerData.offer));
+
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      await supabase
+        .from('calls')
+        .update({ answer: answer })
+        .eq('id', callId);
+
+      peerConnection.onicecandidate = async (event) => {
+        if (event.candidate) {
+          await supabase.from('candidates').insert({
+            call_id: callId,
+            candidate: event.candidate.toJSON(),
+            role: 'callee'
+          });
+        }
+      };
+
+      supabase
+        .channel('cand-' + callId)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'candidates', filter: `call_id=eq.${callId}` }, payload => {
+          if (payload.new.role === 'caller') {
+            const candidate = new RTCIceCandidate(payload.new.candidate);
+            peerConnection.addIceCandidate(candidate);
+          }
+        })
+        .subscribe();
+    };
+  </script>
+</body>
+</html>
