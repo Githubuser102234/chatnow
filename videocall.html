@@ -1,191 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Supabase WebRTC Video Call</title>
-<style>
-  body { font-family: sans-serif; text-align: center; }
-  video { width: 45%; margin: 10px; background: black; }
-  #status { font-weight: bold; margin: 10px; padding: 5px; border-radius: 5px; color: white; background: gray; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Deprecated</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            color: #333;
+            text-align: center;
+        }
+        h1 {
+            color: #cc0000;
+            margin-bottom: 20px;
+        }
+        img {
+            max-width: 150px; /* Adjust as needed for your logo size */
+            height: auto;
+            border: 1px solid #ccc; /* Just to make the blank space visible */
+        }
+    </style>
 </head>
 <body>
-
-<h1>Supabase WebRTC Video Call</h1>
-
-<div id="status">Idle</div>
-<video id="localVideo" autoplay muted playsinline></video>
-<video id="remoteVideo" autoplay playsinline></video><br />
-<button id="startBtn">Create / Join Call</button>
-<p>Share link: <span id="shareLink"></span></p>
-
-<script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-
-  const SUPABASE_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co'
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
-
-  const localVideo = document.getElementById('localVideo')
-  const remoteVideo = document.getElementById('remoteVideo')
-  const statusEl = document.getElementById('status')
-  const startBtn = document.getElementById('startBtn')
-  const shareLink = document.getElementById('shareLink')
-
-  let pc, channel
-  let callId
-  let role
-  let remoteDescSet = false
-  let iceQueue = []
-
-  function setStatus(text, color='gray') {
-    statusEl.textContent = text
-    statusEl.style.backgroundColor = color
-  }
-
-  // Generate random UUID for call
-  function generateCallId() {
-    return crypto.randomUUID()
-  }
-
-  async function start() {
-    callId = location.hash.slice(1)
-    if (!callId) {
-      // Caller role
-      callId = generateCallId()
-      location.hash = callId
-      role = 'caller'
-    } else {
-      role = 'callee'
-    }
-    shareLink.textContent = location.href
-    startBtn.disabled = true
-    setStatus('Starting...', 'orange')
-
-    await setupConnection()
-  }
-
-  async function setupConnection() {
-    pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    })
-
-    // Add local media
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      localVideo.srcObject = stream
-      stream.getTracks().forEach(track => pc.addTrack(track, stream))
-    } catch (err) {
-      alert('Error getting local media: ' + err.message)
-      setStatus('Failed to get media', 'red')
-      return
-    }
-
-    pc.ontrack = (event) => {
-      if (!remoteVideo.srcObject) {
-        remoteVideo.srcObject = new MediaStream()
-      }
-      remoteVideo.srcObject.addTrack(event.track)
-      setStatus('Connected', 'green')
-    }
-
-    pc.onicecandidate = async (event) => {
-      if (event.candidate) {
-        await sendSignal('ice', event.candidate.toJSON())
-      }
-    }
-
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'connected') {
-        setStatus('Connected', 'green')
-      } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-        setStatus('Disconnected', 'red')
-      }
-    }
-
-    // Setup Supabase broadcast channel for signaling
-    channel = supabase.channel('call_' + callId, { config: { broadcast: { self: false } } })
-    channel.on('broadcast', { event: 'offer' }, payload => onSignal('offer', payload))
-    channel.on('broadcast', { event: 'answer' }, payload => onSignal('answer', payload))
-    channel.on('broadcast', { event: 'ice' }, payload => onSignal('ice', payload))
-
-    const { error } = await channel.subscribe()
-    if (error) {
-      alert('Failed to subscribe to signaling channel: ' + error.message)
-      setStatus('Subscription failed', 'red')
-      return
-    }
-
-    if (role === 'caller') {
-      setStatus('Creating offer...', 'orange')
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-      await sendSignal('offer', offer)
-    } else {
-      setStatus('Waiting for offer...', 'orange')
-    }
-  }
-
-  async function sendSignal(type, payload) {
-    await channel.send({ type: 'broadcast', event: type, payload })
-  }
-
-  async function onSignal(type, payload) {
-    if (type === 'offer' && role === 'callee') {
-      setStatus('Received offer, creating answer...', 'orange')
-      await pc.setRemoteDescription(new RTCSessionDescription(payload))
-      remoteDescSet = true
-
-      const answer = await pc.createAnswer()
-      await pc.setLocalDescription(answer)
-      await sendSignal('answer', answer)
-
-      // Add any queued ICE candidates now
-      for (const candidate of iceQueue) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate))
-        } catch (e) {
-          console.warn('Error adding queued ICE candidate', e)
-        }
-      }
-      iceQueue = []
-    } else if (type === 'answer' && role === 'caller') {
-      setStatus('Received answer, establishing connection...', 'orange')
-      await pc.setRemoteDescription(new RTCSessionDescription(payload))
-      remoteDescSet = true
-
-      // Add any queued ICE candidates now
-      for (const candidate of iceQueue) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate))
-        } catch (e) {
-          console.warn('Error adding queued ICE candidate', e)
-        }
-      }
-      iceQueue = []
-    } else if (type === 'ice') {
-      if (remoteDescSet) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(payload))
-        } catch (e) {
-          console.warn('Error adding ICE candidate', e)
-        }
-      } else {
-        iceQueue.push(payload)
-      }
-    }
-  }
-
-  startBtn.onclick = start
-
-  // Auto-start if hash present
-  window.onload = () => {
-    if (location.hash) {
-      startBtn.click()
-    }
-  }
-</script>
-
+    <h1>This page is being deprecated.</h1>
+    <a href="#" aria-label="https://cdn.chatvana.xyz/cdn/ChatVana%20Compact%20logo.PNG">
+        <img src="" alt="Compact Logo">
+    </a>
 </body>
 </html>
