@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Video Call</title>
+  <style>
+    video { width: 45%; margin: 10px; border: 2px solid #333; }
+    button { padding: 10px 20px; font-size: 16px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h2>1-on-1 Video Call</h2>
+  <video id="localVideo" autoplay muted playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+  <br>
+  <button id="startCall">Start Call</button>
+  <button id="joinCall">Join Call</button>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDpbon3vVvUX_OlK20JyiVBdm2-ELeoxHE",
+      authDomain: "chatapp-d700a.firebaseapp.com",
+      projectId: "chatapp-d700a",
+      databaseURL: "https://chatapp-d700a-default-rtdb.firebaseio.com",
+      storageBucket: "chatapp-d700a.appspot.com",
+      messagingSenderId: "217425204494",
+      appId: "1:217425204494:web:e3c772b8e2d839248f735f"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
+  <script src="videocall.js"></script>
+</body>
+</html>
