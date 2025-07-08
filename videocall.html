@@ -8,11 +8,21 @@
     video { width: 45%; margin: 1%; background: #000; }
     #callUI { display: none; }
     #linkContainer { margin: 1em 0; }
+    #status {
+      font-weight: bold;
+      color: white;
+      background: #444;
+      padding: 5px 10px;
+      border-radius: 5px;
+      display: inline-block;
+      margin: 10px auto;
+    }
   </style>
 </head>
 <body>
 
   <h1>Video Call with Supabase</h1>
+  <div id="status">Not connected</div>
 
   <div id="startUI">
     <button id="createBtn">Create Call</button>
@@ -37,19 +47,13 @@
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
 
-    function uuid4() {
-      return ([1e7]+-1e3+-4e3+-8e3+-1e11)
-        .replace(/[018]/g, c =>
-          (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-        );
-    }
-
     const startUI = document.getElementById('startUI')
     const createBtn = document.getElementById('createBtn')
     const shareLink = document.getElementById('shareLink')
     const callUI = document.getElementById('callUI')
     const localVid = document.getElementById('localVideo')
     const remoteVid = document.getElementById('remoteVideo')
+    const statusEl = document.getElementById('status')
 
     let pc
     let callId
@@ -58,6 +62,13 @@
     let pendingCandidates = []
 
     createBtn.onclick = createCall
+
+    function uuid4() {
+      return ([1e7]+-1e3+-4e3+-8e3+-1e11)
+        .replace(/[018]/g, c =>
+          (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+    }
 
     async function createCall() {
       callId = uuid4()
@@ -84,39 +95,48 @@
     }
 
     async function startWebRTC() {
+      setStatus('Connecting...')
+
       pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       })
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        localVid.srcObject = stream
-        stream.getTracks().forEach(track => pc.addTrack(track, stream))
-      } catch (e) {
-        alert('Could not get media: ' + e.message)
-        return
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      localVid.srcObject = stream
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
 
       pc.ontrack = event => {
         if (!remoteVid.srcObject) {
           remoteVid.srcObject = new MediaStream()
         }
         remoteVid.srcObject.addTrack(event.track)
+        setStatus('Connected')
       }
 
       pc.onicecandidate = async ({ candidate }) => {
-        if (!candidate) return
-        await supabase.from('signaling').insert([{
-          call_id: callId,
-          sender: role,
-          signal_type: 'ice',
-          payload: candidate.toJSON()
-        }])
+        if (candidate) {
+          await supabase.from('signaling').insert([{
+            call_id: callId,
+            sender: role,
+            signal_type: 'ice',
+            payload: candidate.toJSON()
+          }])
+        }
+      }
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setStatus('Connected')
+        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          setStatus('Disconnected')
+        }
       }
 
       supabase
-        .from(`signaling:call_id=eq.${callId}`)
-        .on('INSERT', payload => onSignal(payload.new))
+        .channel('signaling_channel')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signaling', filter: `call_id=eq.${callId}` }, payload => {
+          onSignal(payload.new)
+        })
         .subscribe()
 
       if (role === 'caller') {
@@ -136,7 +156,7 @@
 
       switch (msg.signal_type) {
         case 'offer':
-          await pc.setRemoteDescription(msg.payload)
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
           remoteDescriptionSet = true
           const answer = await pc.createAnswer()
           await pc.setLocalDescription(answer)
@@ -150,7 +170,7 @@
           break
 
         case 'answer':
-          await pc.setRemoteDescription(msg.payload)
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
           remoteDescriptionSet = true
           flushPendingCandidates()
           break
@@ -158,9 +178,9 @@
         case 'ice':
           if (remoteDescriptionSet) {
             try {
-              await pc.addIceCandidate(msg.payload)
+              await pc.addIceCandidate(new RTCIceCandidate(msg.payload))
             } catch (e) {
-              console.warn('Error adding ICE:', e)
+              console.warn('Error adding ICE candidate:', e)
             }
           } else {
             pendingCandidates.push(msg.payload)
@@ -170,20 +190,29 @@
     }
 
     async function flushPendingCandidates() {
-      for (const candidate of pendingCandidates) {
+      for (const c of pendingCandidates) {
         try {
-          await pc.addIceCandidate(candidate)
+          await pc.addIceCandidate(new RTCIceCandidate(c))
         } catch (e) {
-          console.warn('Failed flushing ICE', e)
+          console.warn('Failed to flush ICE candidate:', e)
         }
       }
       pendingCandidates = []
     }
 
+    function setStatus(text) {
+      statusEl.textContent = text
+      statusEl.style.background = {
+        'Connected': '#4caf50',
+        'Disconnected': '#f44336',
+        'Connecting...': '#ff9800'
+      }[text] || '#444'
+    }
+
     window.onload = () => {
-      const idFromHash = location.hash.slice(1)
-      if (idFromHash) {
-        joinCall(idFromHash)
+      const hash = location.hash.slice(1)
+      if (hash) {
+        joinCall(hash)
       }
     }
   </script>
