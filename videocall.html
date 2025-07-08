@@ -32,13 +32,11 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    // ——— CONFIG ———
     const SUPABASE_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co'
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
 
-    // ——— UTILS ———
     function uuid4() {
       return ([1e7]+-1e3+-4e3+-8e3+-1e11)
         .replace(/[018]/g, c =>
@@ -57,12 +55,11 @@
     let callId
     let role
 
+    createBtn.onclick = createCall
+
     async function createCall() {
       callId = uuid4()
-      // Insert call into Supabase
-      const { error } = await supabase
-        .from('calls')
-        .insert([{ call_id: callId }])
+      const { error } = await supabase.from('calls').insert([{ call_id: callId }])
       if (error) {
         alert('Error creating call: ' + error.message)
         return
@@ -83,8 +80,6 @@
       role = 'callee'
       startWebRTC()
     }
-
-    createBtn.onclick = createCall
 
     async function startWebRTC() {
       pc = new RTCPeerConnection({
@@ -117,7 +112,6 @@
         }])
       }
 
-      // Listen for signaling messages on this call
       supabase
         .from(`signaling:call_id=eq.${callId}`)
         .on('INSERT', payload => onSignal(payload.new))
@@ -140,19 +134,23 @@
 
       switch (msg.signal_type) {
         case 'offer':
-          await pc.setRemoteDescription(msg.payload)
-          const answer = await pc.createAnswer()
-          await pc.setLocalDescription(answer)
-          await supabase.from('signaling').insert([{
-            call_id: callId,
-            sender: role,
-            signal_type: 'answer',
-            payload: answer.toJSON()
-          }])
+          if (!pc.currentRemoteDescription) {
+            await pc.setRemoteDescription(msg.payload)
+            const answer = await pc.createAnswer()
+            await pc.setLocalDescription(answer)
+            await supabase.from('signaling').insert([{
+              call_id: callId,
+              sender: role,
+              signal_type: 'answer',
+              payload: answer.toJSON()
+            }])
+          }
           break
 
         case 'answer':
-          await pc.setRemoteDescription(msg.payload)
+          if (!pc.currentRemoteDescription) {
+            await pc.setRemoteDescription(msg.payload)
+          }
           break
 
         case 'ice':
@@ -165,7 +163,6 @@
       }
     }
 
-    // On page load, if there's a hash, join the call automatically
     window.onload = () => {
       const idFromHash = location.hash.slice(1)
       if (idFromHash) {
