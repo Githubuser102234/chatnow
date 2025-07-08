@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>📞 Create or Join a Video Call</title>
+  <title>📞 Video Call</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin: 1em; }
     video { width: 45%; margin: 1%; background: #000; }
@@ -12,7 +12,7 @@
 </head>
 <body>
 
-  <h1>Video Call with Supabase Signaling</h1>
+  <h1>Video Call with Supabase</h1>
 
   <div id="startUI">
     <button id="createBtn">Create Call</button>
@@ -20,7 +20,7 @@
   </div>
 
   <div id="linkContainer">
-    Share this link to invite someone:<br>
+    Share this link:<br>
     <code id="shareLink" style="word-break: break-all;"></code>
   </div>
 
@@ -54,6 +54,8 @@
     let pc
     let callId
     let role
+    let remoteDescriptionSet = false
+    let pendingCandidates = []
 
     createBtn.onclick = createCall
 
@@ -91,7 +93,7 @@
         localVid.srcObject = stream
         stream.getTracks().forEach(track => pc.addTrack(track, stream))
       } catch (e) {
-        alert('Could not get user media: ' + e.message)
+        alert('Could not get media: ' + e.message)
         return
       }
 
@@ -134,33 +136,48 @@
 
       switch (msg.signal_type) {
         case 'offer':
-          if (!pc.currentRemoteDescription) {
-            await pc.setRemoteDescription(msg.payload)
-            const answer = await pc.createAnswer()
-            await pc.setLocalDescription(answer)
-            await supabase.from('signaling').insert([{
-              call_id: callId,
-              sender: role,
-              signal_type: 'answer',
-              payload: answer.toJSON()
-            }])
-          }
+          await pc.setRemoteDescription(msg.payload)
+          remoteDescriptionSet = true
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          await supabase.from('signaling').insert([{
+            call_id: callId,
+            sender: role,
+            signal_type: 'answer',
+            payload: answer.toJSON()
+          }])
+          flushPendingCandidates()
           break
 
         case 'answer':
-          if (!pc.currentRemoteDescription) {
-            await pc.setRemoteDescription(msg.payload)
-          }
+          await pc.setRemoteDescription(msg.payload)
+          remoteDescriptionSet = true
+          flushPendingCandidates()
           break
 
         case 'ice':
-          try {
-            await pc.addIceCandidate(msg.payload)
-          } catch (e) {
-            console.warn('Failed to add ICE candidate', e)
+          if (remoteDescriptionSet) {
+            try {
+              await pc.addIceCandidate(msg.payload)
+            } catch (e) {
+              console.warn('Error adding ICE:', e)
+            }
+          } else {
+            pendingCandidates.push(msg.payload)
           }
           break
       }
+    }
+
+    async function flushPendingCandidates() {
+      for (const candidate of pendingCandidates) {
+        try {
+          await pc.addIceCandidate(candidate)
+        } catch (e) {
+          console.warn('Failed flushing ICE', e)
+        }
+      }
+      pendingCandidates = []
     }
 
     window.onload = () => {
