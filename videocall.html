@@ -1,204 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>📞 Video Call</title>
+  <meta charset="UTF-8" />
+  <title>📞 Broadcast/WebRTC Call</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin: 1em; }
-    video { width: 45%; margin: 1%; background: #000; }
-    #callUI { display: none; }
-    #linkContainer { margin: 1em 0; }
-    #status { margin-top: 10px; font-weight: bold; }
+    video { width: 45%; margin: 10px; background: #000; }
+    #status { font-weight: bold; padding: 5px; border-radius: 4px; background: #555; color: #fff; }
   </style>
 </head>
 <body>
-
-  <h1>Video Call with Supabase</h1>
-
-  <div id="startUI">
-    <button id="createBtn">Create Call</button>
-    <p>Or open this page with a #call_id link to join a call.</p>
-  </div>
-
-  <div id="linkContainer">
-    Share this link:<br>
-    <code id="shareLink" style="word-break: break-all;"></code>
-  </div>
-
-  <div id="callUI">
-    <video id="localVideo" autoplay muted playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-    <div id="status">Connecting…</div>
-  </div>
+  <h1>Supabase Broadcast WebRTC Call</h1>
+  <div id="status">Idle</div><br/>
+  <video id="localVideo" autoplay muted playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video><br/>
+  <button id="startBtn">Create / Join Call</button>
+  <p id="share">Share link: <span id="shareLink"></span></p>
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    const SUPA_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co'
+    const SUPA_ANON = 'eyJhbGciOi...'
+    const supabase = createClient(SUPA_URL, SUPA_ANON)
 
-    const supabase = createClient(
-      'https://ahsrsrkzmphbhecishuc.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
-    )
+    const localVid = document.getElementById('localVideo'),
+          remoteVid = document.getElementById('remoteVideo'),
+          statusEl = document.getElementById('status'),
+          startBtn = document.getElementById('startBtn'),
+          shareLink = document.getElementById('shareLink')
 
-    const startUI = document.getElementById('startUI')
-    const createBtn = document.getElementById('createBtn')
-    const shareLink = document.getElementById('shareLink')
-    const callUI = document.getElementById('callUI')
-    const localVid = document.getElementById('localVideo')
-    const remoteVid = document.getElementById('remoteVideo')
-    const statusText = document.getElementById('status')
+    let pc, channel, callId, role, remoteDesc = false, queue = []
 
-    let pc, callId, role
-    let remoteDescSet = false
-    let pendingICE = []
-
-    createBtn.onclick = createCall
-
-    function uuid4() {
-      return ([1e7]+-1e3+-4e3+-8e3+-1e11)
-        .replace(/[018]/g, c =>
-          (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-        );
+    function setStatus(s) {
+      statusEl.textContent = s
+      const colors = { 'Connected': '#4caf50', 'Disconnected': '#f44336', 'Connecting': '#ff9800', 'Idle': '#555' }
+      statusEl.style.backgroundColor = colors[s] || '#555'
     }
 
-    async function createCall() {
-      callId = uuid4()
-      const { error } = await supabase.from('calls').insert([{ call_id: callId }])
-      if (error) return alert('Error creating call: ' + error.message)
-
+    async function init() {
+      callId = location.hash.slice(1) || crypto.randomUUID()
+      role = location.hash.slice(1) ? 'callee' : 'caller'
       location.hash = callId
       shareLink.textContent = location.href
-      startUI.style.display = 'none'
-      callUI.style.display = 'block'
-      statusText.textContent = 'Connecting...'
-      role = 'caller'
-      startWebRTC()
+      startBtn.disabled = true
+      setStatus('Connecting')
+      setupConn()
     }
 
-    async function joinCall(id) {
-      callId = id
-      shareLink.textContent = location.href
-      startUI.style.display = 'none'
-      callUI.style.display = 'block'
-      statusText.textContent = 'Connecting...'
-      role = 'callee'
-      startWebRTC()
-    }
-
-    async function startWebRTC() {
-      pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      })
-
-      pc.onicecandidate = async ({ candidate }) => {
-        if (candidate) {
-          await supabase.from('signaling').insert([{
-            call_id: callId,
-            sender: role,
-            signal_type: 'ice',
-            payload: candidate.toJSON()
-          }])
-        }
-      }
-
-      pc.ontrack = event => {
+    async function setupConn() {
+      pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] })
+      pc.onicecandidate = e => e.candidate && channel.send({ type:'broadcast', event:'ice', payload:e.candidate.toJSON() })
+      pc.ontrack = e => {
         if (!remoteVid.srcObject) remoteVid.srcObject = new MediaStream()
-        remoteVid.srcObject.addTrack(event.track)
-        statusText.textContent = 'Connected!'
+        remoteVid.srcObject.addTrack(e.track)
+        setStatus('Connected')
       }
-
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-          statusText.textContent = 'Disconnected'
-        } else if (pc.connectionState === 'connected') {
-          statusText.textContent = 'Connected!'
-        } else {
-          statusText.textContent = 'Connecting...'
-        }
+        if (pc.connectionState === 'connected') setStatus('Connected')
+        else if (['failed','disconnected','closed'].includes(pc.connectionState)) setStatus('Disconnected')
       }
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        localVid.srcObject = stream
-        stream.getTracks().forEach(track => pc.addTrack(track, stream))
-      } catch (err) {
-        alert('Media error: ' + err.message)
-        return
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true })
+      localVid.srcObject = stream
+      stream.getTracks().forEach(t=>pc.addTrack(t,stream))
 
-      // Listen for signaling messages
-      supabase
-        .channel('sig_' + callId)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'signaling',
-          filter: `call_id=eq.${callId}`
-        }, payload => {
-          handleSignal(payload.new)
-        })
-        .subscribe()
+      channel = supabase.channel('call_' + callId, { config:{ broadcast:{ self:false } } })
+      channel.on('broadcast', { event:'offer' }, msg => handle('offer', msg.payload))
+      channel.on('broadcast', { event:'answer' }, msg => handle('answer', msg.payload))
+      channel.on('broadcast', { event:'ice' }, msg => handle('ice', msg.payload))
+      await channel.subscribe()
 
-      // Caller sends offer
       if (role === 'caller') {
         const offer = await pc.createOffer()
         await pc.setLocalDescription(offer)
-        await supabase.from('signaling').insert([{
-          call_id: callId,
-          sender: role,
-          signal_type: 'offer',
-          payload: offer
-        }])
+        await channel.send({ type:'broadcast', event:'offer', payload: offer })
       }
     }
 
-    async function handleSignal(msg) {
-      if (msg.sender === role) return
-
-      switch (msg.signal_type) {
-        case 'offer':
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
-          remoteDescSet = true
-          const answer = await pc.createAnswer()
-          await pc.setLocalDescription(answer)
-          await supabase.from('signaling').insert([{
-            call_id: callId,
-            sender: role,
-            signal_type: 'answer',
-            payload: answer
-          }])
-          flushICE()
-          break
-
-        case 'answer':
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
-          remoteDescSet = true
-          flushICE()
-          break
-
-        case 'ice':
-          if (remoteDescSet) {
-            await pc.addIceCandidate(new RTCIceCandidate(msg.payload))
-          } else {
-            pendingICE.push(msg.payload)
-          }
-          break
+    async function handle(type, payload) {
+      if (type === 'offer' && role === 'callee') {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload))
+        remoteDesc = true
+        const ans = await pc.createAnswer()
+        await pc.setLocalDescription(ans)
+        await channel.send({ type:'broadcast', event:'answer', payload: ans })
+        queue.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)))
+      } else if (type === 'answer' && role === 'caller') {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload))
+        remoteDesc = true
+        queue.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)))
+      } else if (type === 'ice') {
+        if (remoteDesc) await pc.addIceCandidate(new RTCIceCandidate(payload))
+        else queue.push(payload)
       }
     }
 
-    async function flushICE() {
-      for (const c of pendingICE) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(c))
-        } catch (e) {
-          console.warn('ICE error:', e)
-        }
-      }
-      pendingICE = []
-    }
-
+    startBtn.onclick = init
     window.onload = () => {
-      const idFromHash = location.hash.slice(1)
-      if (idFromHash) joinCall(idFromHash)
+      if (location.hash) init()
     }
   </script>
 </body>
