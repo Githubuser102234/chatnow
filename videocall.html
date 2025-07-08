@@ -22,140 +22,96 @@
   </div>
 
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    const supabase = createClient(
-      'https://ahsrsrkzmphbhecishuc.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
-    )
+const supabase = createClient('https://ahsrsrkzmphbhecishuc.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA')
+const status = document.getElementById('status')
+const startBtn = document.getElementById('startBtn')
+const shareLink = document.getElementById('shareLink')
+const localVideo = document.getElementById('localVideo')
+const remoteVideo = document.getElementById('remoteVideo')
 
-    const startBtn = document.getElementById('startBtn')
-    const localVideo = document.getElementById('localVideo')
-    const remoteVideo = document.getElementById('remoteVideo')
-    const statusText = document.getElementById('status')
-    const shareLink = document.getElementById('shareLink')
+let pc, callId, role, pending = []
 
-    let pc, callId, role
-    let remoteDescSet = false
-    const pendingCandidates = []
+startBtn.onclick = async () => {
+  callId = crypto.randomUUID()
+  role = 'caller'
+  await supabase.from('calls').insert([{call_id:callId}])
+  location.hash = callId
+  shareLink.textContent = location.href
+  initConnection()
+}
 
-    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+window.onload = () => {
+  const h = location.hash.slice(1)
+  if (h) {
+    callId = h
+    role = 'callee'
+    shareLink.textContent = location.href
+    initConnection()
+  }
+}
 
-    startBtn.onclick = async () => {
-      callId = crypto.randomUUID()
-      role = 'caller'
-      location.hash = callId
-      shareLink.textContent = location.href
-      await supabase.from('calls').insert([{ call_id: callId }])
-      await setupConnection()
-    }
+async function initConnection(){
+  log('Initializing connection as ' + role)
+  status.textContent = 'Connecting…'
 
-    window.onload = async () => {
-      const hash = location.hash.slice(1)
-      if (hash) {
-        callId = hash
-        role = 'callee'
-        shareLink.textContent = location.href
-        await setupConnection()
-      }
-    }
+  pc = new RTCPeerConnection({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] })
+  pc.onicecandidate = e => { if (e.candidate) sendSignal('ice', e.candidate.toJSON()) }
 
-    async function setupConnection() {
-      setStatus('Connecting...')
-      pc = new RTCPeerConnection(config)
+  pc.ontrack = e => {
+    if (!remoteVideo.srcObject) remoteVideo.srcObject = new MediaStream()
+    remoteVideo.srcObject.addTrack(e.track)
+    log('Remote track arrived')
+    status.textContent = 'Connected'
+  }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      localVideo.srcObject = stream
-      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+  pc.onconnectionstatechange = () => log('Connection state: ' + pc.connectionState)
 
-      pc.ontrack = e => {
-        if (!remoteVideo.srcObject) {
-          remoteVideo.srcObject = new MediaStream()
-        }
-        remoteVideo.srcObject.addTrack(e.track)
-        setStatus('Connected')
-      }
+  const stream = await navigator.mediaDevices.getUserMedia({video:true,audio:true})
+  localVideo.srcObject = stream
+  stream.getTracks().forEach(t=>pc.addTrack(t,stream))
 
-      pc.onicecandidate = async ({ candidate }) => {
-        if (candidate) {
-          await supabase.from('signaling').insert([{
-            call_id: callId,
-            type: 'ice',
-            sender: role,
-            payload: candidate.toJSON()
-          }])
-        }
-      }
+  supabase
+    .channel('sig_' + callId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'signaling',filter:`call_id=eq.${callId}`},payload=> {
+      log('Signal received:', payload.new)
+      handle(payload.new)
+    }).subscribe()
 
-      pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'connected') {
-          setStatus('Connected')
-        } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-          setStatus('Disconnected')
-        }
-      }
+  if (role==='caller') {
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    sendSignal('offer', offer)
+  }
+}
 
-      supabase
-        .channel('signaling_' + callId)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'signaling',
-          filter: `call_id=eq.${callId}`
-        }, ({ new: data }) => handleSignal(data))
-        .subscribe()
+async function sendSignal(type, payload){
+  await supabase.from('signaling').insert([{call_id:callId,sender:role,type,payload}])
+  log('Sent', type)
+}
 
-      if (role === 'caller') {
-        const offer = await pc.createOffer()
-        await pc.setLocalDescription(offer)
-        await supabase.from('signaling').insert([{
-          call_id: callId,
-          type: 'offer',
-          sender: role,
-          payload: offer
-        }])
-      }
-    }
+let remoteSet = false
+async function handle(msg){
+  if(msg.sender===role) return
+  log('Handling', msg.type)
+  if (msg.type==='offer') {
+    await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
+    remoteSet = true
+    const ans = await pc.createAnswer()
+    await pc.setLocalDescription(ans)
+    sendSignal('answer', ans)
+  } else if (msg.type==='answer') {
+    await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
+    remoteSet = true
+    pending.forEach(c=>pc.addIceCandidate(new RTCIceCandidate(c)))
+  } else if (msg.type==='ice') {
+    if(remoteSet) await pc.addIceCandidate(new RTCIceCandidate(msg.payload))
+    else pending.push(msg.payload)
+  }
+}
 
-    async function handleSignal({ sender, type, payload }) {
-      if (sender === role) return // Ignore own messages
-
-      if (type === 'offer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload))
-        remoteDescSet = true
-
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-        await supabase.from('signaling').insert([{
-          call_id: callId,
-          type: 'answer',
-          sender: role,
-          payload: answer
-        }])
-      }
-
-      else if (type === 'answer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(payload))
-        remoteDescSet = true
-        pendingCandidates.forEach(async c =>
-          await pc.addIceCandidate(new RTCIceCandidate(c))
-        )
-      }
-
-      else if (type === 'ice') {
-        if (remoteDescSet) {
-          await pc.addIceCandidate(new RTCIceCandidate(payload))
-        } else {
-          pendingCandidates.push(payload)
-        }
-      }
-    }
-
-    function setStatus(text) {
-      statusText.textContent = text
-      statusText.style.background = text === 'Connected' ? 'green' :
-                                    text === 'Disconnected' ? 'red' : '#555'
-    }
-  </script>
+function log(...a){ console.log(...a) }
+</script>
 </body>
 </html>
