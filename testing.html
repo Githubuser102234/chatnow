@@ -32,7 +32,7 @@
             padding: 20px;
             box-shadow: 2px 0 5px rgba(0,0,0,0.2);
             display: flex;
-            flex-direction: column; /* This is key for vertical stacking */
+            flex-direction: column;
             position: relative;
             z-index: 1000;
             transition: transform 0.3s ease-in-out;
@@ -57,24 +57,10 @@
             background-color: #dc3545; /* Red when open, indicating "close" */
         }
         #sidebar h3 { margin-top: 0; color: #ecf0f1; }
-        #chat-list {
-            list-style: none;
-            padding: 0;
-            flex-grow: 1; /* Allows the list to take up available space */
-            overflow-y: auto; /* Enables scrolling for chat list */
-            margin-bottom: 15px; /* Add some space below the list before buttons */
-        }
+        #chat-list { list-style: none; padding: 0; flex-grow: 1; overflow-y: auto; }
         #chat-list li { margin-bottom: 10px; cursor: pointer; padding: 8px; border-radius: 4px; transition: background-color 0.2s; }
         #chat-list li:hover { background-color: #34495e; }
         #chat-list li.active { background-color: #007bff; font-weight: bold; }
-        
-        /* Button styles */
-        .sidebar-buttons {
-            display: flex;
-            flex-direction: column; /* Stack buttons vertically */
-            gap: 10px; /* Space between buttons */
-            margin-top: auto; /* Pushes buttons to the bottom of the flex container */
-        }
         #create-chat-button, #my-profile-button {
             background-color: #28a745;
             color: white;
@@ -82,6 +68,7 @@
             padding: 10px 15px;
             cursor: pointer;
             border-radius: 5px;
+            margin-top: 10px; /* Adjusted margin */
             width: 100%;
             box-sizing: border-box; /* Ensures padding and border are included in the width */
         }
@@ -511,10 +498,8 @@
         <h3>Your Group Chats (<span id="chat-count">0</span>)</h3>
         <ul id="chat-list">
         </ul>
-        <div class="sidebar-buttons">
-            <button id="create-chat-button">Create New Chat</button>
-            <button id="my-profile-button">My Profile</button>
-        </div>
+        <button id="create-chat-button">Create New Chat</button>
+        <button id="my-profile-button">My Profile</button>
     </div>
 
     <div class="main-content">
@@ -1332,7 +1317,7 @@
                 joinChatPreviewButton.dataset.chatIdToJoin = chatId;
             } else {
                 joinChatPreviewDiv.classList.add('hidden');
-                await initializeApplicationUI();
+                await initializeApplicationUI(null);
                 statusMessageDiv.textContent = 'Group chat not found or accessible. Please check the link.';
             }
         }
