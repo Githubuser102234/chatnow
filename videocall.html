@@ -1,115 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>📞 Video Call</title>
+  <meta charset="UTF-8">
+  <title>Video Call</title>
   <style>
-    body { font-family: sans-serif; text-align: center; margin: 1em; }
-    video { width: 45%; margin: 1%; background: #000; }
-    #callUI { display: none; }
-    #linkContainer { margin: 1em 0; }
-    #status {
-      font-weight: bold;
-      color: white;
-      background: #444;
-      padding: 5px 10px;
-      border-radius: 5px;
-      display: inline-block;
-      margin: 10px auto;
-    }
+    body { font-family: sans-serif; text-align: center; }
+    video { width: 45%; margin: 10px; background: black; }
+    #status { font-weight: bold; margin: 10px; padding: 6px 12px; background: #444; color: white; border-radius: 5px; }
   </style>
 </head>
 <body>
-
-  <h1>Video Call with Supabase</h1>
+  <h1>📞 Supabase Video Call</h1>
   <div id="status">Not connected</div>
-
-  <div id="startUI">
-    <button id="createBtn">Create Call</button>
-    <p>Or open this page with a #call_id link to join a call.</p>
-  </div>
-
-  <div id="linkContainer">
-    Share this link:<br>
-    <code id="shareLink" style="word-break: break-all;"></code>
-  </div>
-
-  <div id="callUI">
+  <div>
     <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+  <div id="controls">
+    <button id="startBtn">Create Call</button>
+    <p>Shareable link: <span id="shareLink"></span></p>
   </div>
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    const SUPABASE_URL = 'https://ahsrsrkzmphbhecishuc.supabase.co'
-    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
+    const supabase = createClient(
+      'https://ahsrsrkzmphbhecishuc.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
+    )
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
-
-    const startUI = document.getElementById('startUI')
-    const createBtn = document.getElementById('createBtn')
+    const startBtn = document.getElementById('startBtn')
+    const localVideo = document.getElementById('localVideo')
+    const remoteVideo = document.getElementById('remoteVideo')
+    const statusText = document.getElementById('status')
     const shareLink = document.getElementById('shareLink')
-    const callUI = document.getElementById('callUI')
-    const localVid = document.getElementById('localVideo')
-    const remoteVid = document.getElementById('remoteVideo')
-    const statusEl = document.getElementById('status')
 
-    let pc
-    let callId
-    let role
-    let remoteDescriptionSet = false
-    let pendingCandidates = []
+    let pc, callId, role
+    let remoteDescSet = false
+    const pendingCandidates = []
 
-    createBtn.onclick = createCall
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
 
-    function uuid4() {
-      return ([1e7]+-1e3+-4e3+-8e3+-1e11)
-        .replace(/[018]/g, c =>
-          (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-        );
-    }
-
-    async function createCall() {
-      callId = uuid4()
-      const { error } = await supabase.from('calls').insert([{ call_id: callId }])
-      if (error) {
-        alert('Error creating call: ' + error.message)
-        return
-      }
+    startBtn.onclick = async () => {
+      callId = crypto.randomUUID()
+      role = 'caller'
       location.hash = callId
       shareLink.textContent = location.href
-      startUI.style.display = 'none'
-      callUI.style.display = 'block'
-      role = 'caller'
-      startWebRTC()
+      await supabase.from('calls').insert([{ call_id: callId }])
+      await setupConnection()
     }
 
-    async function joinCall(id) {
-      callId = id
-      shareLink.textContent = location.href
-      startUI.style.display = 'none'
-      callUI.style.display = 'block'
-      role = 'callee'
-      startWebRTC()
+    window.onload = async () => {
+      const hash = location.hash.slice(1)
+      if (hash) {
+        callId = hash
+        role = 'callee'
+        shareLink.textContent = location.href
+        await setupConnection()
+      }
     }
 
-    async function startWebRTC() {
+    async function setupConnection() {
       setStatus('Connecting...')
-
-      pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      })
+      pc = new RTCPeerConnection(config)
 
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      localVid.srcObject = stream
+      localVideo.srcObject = stream
       stream.getTracks().forEach(track => pc.addTrack(track, stream))
 
-      pc.ontrack = event => {
-        if (!remoteVid.srcObject) {
-          remoteVid.srcObject = new MediaStream()
+      pc.ontrack = e => {
+        if (!remoteVideo.srcObject) {
+          remoteVideo.srcObject = new MediaStream()
         }
-        remoteVid.srcObject.addTrack(event.track)
+        remoteVideo.srcObject.addTrack(e.track)
         setStatus('Connected')
       }
 
@@ -117,8 +80,8 @@
         if (candidate) {
           await supabase.from('signaling').insert([{
             call_id: callId,
+            type: 'ice',
             sender: role,
-            signal_type: 'ice',
             payload: candidate.toJSON()
           }])
         }
@@ -133,10 +96,13 @@
       }
 
       supabase
-        .channel('signaling_channel')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signaling', filter: `call_id=eq.${callId}` }, payload => {
-          onSignal(payload.new)
-        })
+        .channel('signaling_' + callId)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'signaling',
+          filter: `call_id=eq.${callId}`
+        }, ({ new: data }) => handleSignal(data))
         .subscribe()
 
       if (role === 'caller') {
@@ -144,78 +110,52 @@
         await pc.setLocalDescription(offer)
         await supabase.from('signaling').insert([{
           call_id: callId,
+          type: 'offer',
           sender: role,
-          signal_type: 'offer',
-          payload: offer.toJSON()
+          payload: offer
         }])
       }
     }
 
-    async function onSignal(msg) {
-      if (msg.sender === role) return
+    async function handleSignal({ sender, type, payload }) {
+      if (sender === role) return // Ignore own messages
 
-      switch (msg.signal_type) {
-        case 'offer':
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
-          remoteDescriptionSet = true
-          const answer = await pc.createAnswer()
-          await pc.setLocalDescription(answer)
-          await supabase.from('signaling').insert([{
-            call_id: callId,
-            sender: role,
-            signal_type: 'answer',
-            payload: answer.toJSON()
-          }])
-          flushPendingCandidates()
-          break
+      if (type === 'offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload))
+        remoteDescSet = true
 
-        case 'answer':
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.payload))
-          remoteDescriptionSet = true
-          flushPendingCandidates()
-          break
-
-        case 'ice':
-          if (remoteDescriptionSet) {
-            try {
-              await pc.addIceCandidate(new RTCIceCandidate(msg.payload))
-            } catch (e) {
-              console.warn('Error adding ICE candidate:', e)
-            }
-          } else {
-            pendingCandidates.push(msg.payload)
-          }
-          break
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        await supabase.from('signaling').insert([{
+          call_id: callId,
+          type: 'answer',
+          sender: role,
+          payload: answer
+        }])
       }
-    }
 
-    async function flushPendingCandidates() {
-      for (const c of pendingCandidates) {
-        try {
+      else if (type === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload))
+        remoteDescSet = true
+        pendingCandidates.forEach(async c =>
           await pc.addIceCandidate(new RTCIceCandidate(c))
-        } catch (e) {
-          console.warn('Failed to flush ICE candidate:', e)
+        )
+      }
+
+      else if (type === 'ice') {
+        if (remoteDescSet) {
+          await pc.addIceCandidate(new RTCIceCandidate(payload))
+        } else {
+          pendingCandidates.push(payload)
         }
       }
-      pendingCandidates = []
     }
 
     function setStatus(text) {
-      statusEl.textContent = text
-      statusEl.style.background = {
-        'Connected': '#4caf50',
-        'Disconnected': '#f44336',
-        'Connecting...': '#ff9800'
-      }[text] || '#444'
-    }
-
-    window.onload = () => {
-      const hash = location.hash.slice(1)
-      if (hash) {
-        joinCall(hash)
-      }
+      statusText.textContent = text
+      statusText.style.background = text === 'Connected' ? 'green' :
+                                    text === 'Disconnected' ? 'red' : '#555'
     }
   </script>
-
 </body>
 </html>
