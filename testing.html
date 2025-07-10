@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>ChatVana - Chats</title>
-    <meta name="description" content="Chatvana is a real-time chat platform with public rooms and more.">
-    <meta name="keywords" content="Chatvana, chat app, public chat, messaging platform">
-    <meta name="author" content="ChatVana team">
-    <meta name="robots" content="index, follow">
+    <head>
+  <title>Chatvana - Public Chat Platform</title>
+        <link rel="icon" href="https://cdn.chatvana.xyz/cdn/CBD9BEEA-A467-4A01-A2FE-F09689DCCBE5.png" type="image/png">
+  <meta name="description" content="Chatvana is a real-time chat platform with public rooms and more.">
+  <meta name="keywords" content="Chatvana, chat app, public chat, messaging platform">
+  <meta name="author" content="ChatVana team">
+  <meta name="robots" content="index, follow">
+</head>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ChatVana">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/CBD9BEEA-A467-4A01-A2FE-F09689DCCBE5.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChatVana">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/CBD9BEEA-A467-4A01-A2FE-F09689DCCBE5.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatVana - Chats</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -61,18 +66,18 @@
         #chat-list li { margin-bottom: 10px; cursor: pointer; padding: 8px; border-radius: 4px; transition: background-color 0.2s; }
         #chat-list li:hover { background-color: #34495e; }
         #chat-list li.active { background-color: #007bff; font-weight: bold; }
-        #create-chat-button, #my-profile-button {
+        #create-chat-button {
             background-color: #28a745;
             color: white;
             border: none;
             padding: 10px 15px;
             cursor: pointer;
             border-radius: 5px;
-            margin-top: 10px; /* Adjusted margin */
+            margin-top: 20px;
             width: 100%;
             box-sizing: border-box; /* Ensures padding and border are included in the width */
         }
-        #create-chat-button:hover, #my-profile-button:hover { background-color: #218838; }
+        #create-chat-button:hover { background-color: #218838; }
 
         /* Main Content Area */
         .main-content {
@@ -104,49 +109,19 @@
             background-color: #e9ecef;
             border-radius: 4px;
         }
-        .message-wrapper {
-            display: flex;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-        .message-wrapper.sent {
-            flex-direction: row-reverse; /* PFP on right for sent messages */
-        }
-        .message-wrapper.received {
-            flex-direction: row; /* PFP on left for received messages */
-        }
-
-        .message-pfp {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin: 0 10px;
-            border: 1px solid #ddd;
-            flex-shrink: 0; /* Prevent shrinking */
-        }
-
         .message {
+            margin-bottom: 10px;
             padding: 8px 12px;
             border-radius: 15px;
-            max-width: calc(70% - 60px); /* Adjust for PFP and margin */
+            max-width: 70%;
             word-wrap: break-word;
             position: relative;
+            /* Added padding-bottom to make space for actions */
             padding-bottom: 30px; /* Give more space at the bottom for actions */
         }
-        .message.sent { background-color: #dcf8c6; float: right; clear: both; } /* Float is mostly for layout within flex item */
+        .message.sent { background-color: #dcf8c6; float: right; clear: both; }
         .message.received { background-color: #ffffff; float: left; clear: both; border: 1px solid #eee; }
-
-        .message .username {
-            color: #007bff; /* Blue for clickable usernames */
-            font-weight: bold;
-            cursor: pointer;
-            text-decoration: none; /* Remove underline by default */
-            margin-right: 5px;
-        }
-        .message .username:hover {
-            text-decoration: underline; /* Add underline on hover */
-        }
+        .message strong { color: #075e54; }
         .message .timestamp { font-size: 0.75em; color: #777; display: block; text-align: right; margin-top: 5px; }
         .message img, .message video { max-width: 100%; height: auto; border-radius: 5px; margin-top: 5px; display: block; }
 
@@ -154,17 +129,18 @@
         .message .message-actions {
             position: absolute;
             bottom: 5px;
-            right: 50px;
+            /* Adjusted right position */
+            right: 50px; /* Move it further to the left to avoid timestamp */
             display: flex;
             font-size: 0.7em;
             gap: 5px;
-            background-color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(255, 255, 255, 0.8); /* Slight background for readability */
             padding: 2px 5px;
             border-radius: 5px;
             box-shadow: 0 0 3px rgba(0,0,0,0.1);
         }
         .message.sent .message-actions {
-            left: 15px;
+            left: 15px; /* Align to the left for sent messages */
             right: auto;
         }
         .message-actions button {
@@ -181,6 +157,7 @@
         .message-actions button.delete-btn {
             color: #dc3545;
         }
+
 
         /* Reply-to Message Preview */
         .reply-preview {
@@ -219,6 +196,7 @@
             color: #333;
         }
 
+
         #message-input-area {
             display: flex;
             gap: 10px;
@@ -239,9 +217,9 @@
         #username-input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
         #set-username-button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
         #set-username-button:hover { background-color: #0056b3; }
-        .hidden { display: none !important; } /* Use !important to ensure override */
+        .hidden { display: none; }
 
-        /* Modal for Create Chat, Profile Edit, User Profile */
+        /* Modal for Create Chat */
         .modal {
             display: none; /* Hidden by default */
             position: fixed; /* Stay in place */
@@ -279,9 +257,7 @@
             text-decoration: none;
             cursor: pointer;
         }
-        .modal-content input[type="text"],
-        .modal-content textarea,
-        .modal-content input[type="file"] {
+        .modal-content input[type="text"], .modal-content textarea {
             width: 100%; /* Make input full width of its parent */
             padding: 10px;
             margin-bottom: 10px;
@@ -300,58 +276,6 @@
         .modal-content button:hover {
             background-color: #0056b3;
         }
-
-        /* Profile Edit Modal Specifics */
-        #profile-pfp-preview {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin: 10px auto 20px;
-            display: block;
-            border: 2px solid #007bff;
-        }
-        #profile-upload-button {
-            background-color: #6c757d;
-        }
-        #profile-upload-button:hover {
-            background-color: #5a6268;
-        }
-
-        /* User Profile Mini-Menu Modal */
-        #user-profile-modal .modal-content {
-            text-align: center;
-            max-width: 350px; /* Smaller for a "mini" menu */
-            padding: 25px;
-        }
-        #user-profile-modal-pfp {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin: 0 auto 15px;
-            display: block;
-            border: 3px solid #007bff;
-        }
-        #user-profile-modal-username {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
-        }
-        #user-profile-modal-bio {
-            font-size: 0.95em;
-            color: #666;
-            margin-bottom: 20px;
-            white-space: pre-wrap; /* Preserve line breaks in bio */
-        }
-        #user-profile-modal .close-button {
-            position: absolute;
-            top: 10px;
-            right: 15px;
-            font-size: 24px;
-        }
-
 
         /* Join Chat Preview UI */
         #join-chat-preview {
@@ -383,6 +307,18 @@
         }
         #join-chat-preview button:hover {
             background-color: #0056b3;
+        }
+
+        /* Styles for locked chat message */
+        #chat-locked-message {
+            text-align: center;
+            font-weight: bold;
+            color: #e74c3c; /* Red color for warning */
+            padding: 15px;
+            border: 1px solid #e74c3c;
+            background-color: #fce4e4;
+            border-radius: 5px;
+            margin-top: 10px;
         }
 
         /* --- Mobile Responsiveness --- */
@@ -442,7 +378,7 @@
             }
 
             .message {
-                max-width: calc(90% - 60px); /* Adjust for PFP */
+                max-width: 90%; /* Allow messages to take more width */
                 font-size: 0.9em;
                 padding: 6px 10px; /* Slightly reduced padding */
                 padding-bottom: 30px; /* Ensure mobile messages also have space */
@@ -497,9 +433,8 @@
     <div id="sidebar" class="hidden">
         <h3>Your Group Chats (<span id="chat-count">0</span>)</h3>
         <ul id="chat-list">
-        </ul>
+            </ul>
         <button id="create-chat-button">Create New Chat</button>
-        <button id="my-profile-button">My Profile</button>
     </div>
 
     <div class="main-content">
@@ -510,7 +445,6 @@
                 <p>Please enter your desired username:</p>
                 <input type="text" id="username-input" placeholder="Your username">
                 <button id="set-username-button">Set Username</button>
-                <p id="username-status" style="color: red; margin-top: 10px;"></p>
             </div>
 
             <div id="join-chat-preview" class="hidden">
@@ -523,7 +457,12 @@
             <div id="chat-interface" class="hidden">
                 <h2 id="chat-name"></h2>
                 <div id="chat-window">
+                    </div>
+
+                <div id="chat-locked-message" class="hidden">
+                    This chat has been locked and is now view-only.
                 </div>
+
                 <div id="message-input-area">
                     <div id="reply-preview-area" class="hidden">
                         <span id="reply-to-content"></span>
@@ -552,36 +491,12 @@
         </div>
     </div>
 
-    <div id="profile-edit-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" id="close-profile-modal">&times;</span>
-            <h2>Edit Your Profile</h2>
-            <img id="profile-pfp-preview" src="https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png" alt="Profile Picture">
-            <input type="file" id="profile-pfp-upload" accept="image/*" class="hidden">
-            <button id="profile-upload-button">Upload Profile Picture</button>
-            <input type="text" id="profile-username-input" placeholder="Your Username (required)">
-            <textarea id="profile-bio-input" placeholder="Your Bio (optional)"></textarea>
-            <button id="save-profile-button">Save Profile</button>
-            <div id="profile-status" style="color: red; margin-top: 10px;"></div>
-        </div>
-    </div>
-
-    <div id="user-profile-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" id="close-user-profile-modal">&times;</span>
-            <img id="user-profile-modal-pfp" src="https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png" alt="User Profile Picture">
-            <div id="user-profile-modal-username"></div>
-            <div id="user-profile-modal-bio"></div>
-            <p id="user-profile-modal-status" style="color: red; margin-top: 10px;"></p>
-        </div>
-    </div>
-
-
     <script type="module">
         // Import createClient directly from Supabase JS module
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
         // Supabase client instance
+        // It's defined within the module scope
         const supabase = createClient(
             'https://ahsrsrkzmphbhecishuc.supabase.co',
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA'
@@ -592,10 +507,11 @@
         const usernameSetupDiv = document.getElementById('username-setup');
         const usernameInput = document.getElementById('username-input');
         const setUsernameButton = document.getElementById('set-username-button');
-        const usernameStatusDiv = document.getElementById('username-status'); // New
         const chatInterfaceDiv = document.getElementById('chat-interface');
         const chatNameElement = document.getElementById('chat-name');
         const chatWindow = document.getElementById('chat-window');
+        const messageInputArea = document.getElementById('message-input-area'); // New: for locking
+        const chatLockedMessage = document.getElementById('chat-locked-message'); // New: for locking
         const messageInput = document.getElementById('message-input');
         const mediaUploadInput = document.getElementById('media-upload');
         const mediaButton = document.getElementById('media-button');
@@ -608,11 +524,10 @@
         const chatCountSpan = document.getElementById('chat-count');
         const chatList = document.getElementById('chat-list');
         const createChatButton = document.getElementById('create-chat-button');
-        const myProfileButton = document.getElementById('my-profile-button'); // New
 
         // Create Chat Modal elements
         const createChatModal = document.getElementById('create-chat-modal');
-        const closeCreateChatButton = createChatModal.querySelector('.close-button'); // Renamed for clarity
+        const closeButton = createChatModal.querySelector('.close-button');
         const newChatNameInput = document.getElementById('new-chat-name');
         const newChatDescriptionInput = document.getElementById('new-chat-description');
         const submitCreateChatButton = document.getElementById('submit-create-chat');
@@ -630,39 +545,13 @@
         const replyToContentSpan = document.getElementById('reply-to-content');
         const closeReplyButton = replyPreviewArea.querySelector('.close-reply');
 
-        // Profile Edit Modal elements (NEW)
-        const profileEditModal = document.getElementById('profile-edit-modal');
-        const closeProfileModalButton = document.getElementById('close-profile-modal');
-        const profilePfpPreview = document.getElementById('profile-pfp-preview');
-        const profilePfpUploadInput = document.getElementById('profile-pfp-upload');
-        const profileUploadButton = document.getElementById('profile-upload-button');
-        const profileUsernameInput = document.getElementById('profile-username-input');
-        const profileBioInput = document.getElementById('profile-bio-input');
-        const saveProfileButton = document.getElementById('save-profile-button');
-        const profileStatusDiv = document.getElementById('profile-status');
-
-        // User Profile Mini-Menu Modal elements (NEW)
-        const userProfileModal = document.getElementById('user-profile-modal');
-        const closeUserProfileModalButton = document.getElementById('close-user-profile-modal');
-        const userProfileModalPfp = document.getElementById('user-profile-modal-pfp');
-        const userProfileModalUsername = document.getElementById('user-profile-modal-username');
-        const userProfileModalBio = document.getElementById('user-profile-modal-bio');
-        const userProfileModalStatus = document.getElementById('user-profile-modal-status');
-
-
         // --- Global Variables (for client-side user and chat data) ---
         let localUserId = localStorage.getItem('localUserId');
         let username = localStorage.getItem('username');
-        let userPfpUrl = localStorage.getItem('userPfpUrl') || 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png'; // Default PFP
-        let userBio = localStorage.getItem('userBio') || '';
-
         let currentChatId = null; // Will be set when a chat is selected/created
+        let currentChatIsLocked = false; // NEW: Track chat lock status
         let realtimeSubscription = null; // To manage the real-time subscription
         let replyingToMessageId = null; // Stores the ID of the message being replied to
-
-        // Cache for user profiles to avoid repeated Supabase calls
-        const userProfilesCache = {}; // localUserId -> { username, bio, pfp_url }
-
 
         // --- Helper Functions ---
 
@@ -678,37 +567,6 @@
         }
 
         /**
-         * Fetches user profile from Supabase and caches it.
-         * @param {string} userId - The local_user_id of the user.
-         * @returns {object} User profile data.
-         */
-        async function fetchUserProfile(userId) {
-            if (userProfilesCache[userId]) {
-                return userProfilesCache[userId];
-            }
-
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('username, bio, pfp_url')
-                .eq('local_user_id', userId)
-                .single();
-
-            if (error && error.code !== 'PGRST116') { // PGRST116 means no row found
-                console.error('Error fetching user profile:', error.message);
-                return { username: 'Unknown User', bio: 'N/A', pfp_url: 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png' };
-            }
-
-            const profile = data || { username: 'Unknown User', bio: 'N/A', pfp_url: 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png' };
-            // Set default PFP if null or empty
-            if (!profile.pfp_url) {
-                profile.pfp_url = 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png';
-            }
-            userProfilesCache[userId] = profile;
-            return profile;
-        }
-
-
-        /**
          * Fetches a single message's details.
          * @param {string} messageId - The ID of the message to fetch.
          * @returns {object} The message data or null if not found/error.
@@ -717,7 +575,7 @@
             if (!messageId) return null;
             const { data, error } = await supabase
                 .from('messages')
-                .select('sender_name, content, media_url, media_type, sender_local_user_id') // Added sender_local_user_id
+                .select('sender_name, content, media_url, media_type')
                 .eq('id', messageId)
                 .single();
 
@@ -733,38 +591,18 @@
          * @param {object} messageData - The message object from Supabase.
          */
         async function displayMessage(messageData) {
-            const messageWrapper = document.createElement('div');
-            messageWrapper.classList.add('message-wrapper');
-            messageWrapper.dataset.messageId = messageData.id;
-            messageWrapper.dataset.senderId = messageData.sender_local_user_id;
-
-            const isSender = (messageData.sender_local_user_id === localUserId);
-            messageWrapper.classList.add(isSender ? 'sent' : 'received');
-
-            // Get sender's profile picture
-            const senderProfile = await fetchUserProfile(messageData.sender_local_user_id);
-            const pfpImg = document.createElement('img');
-            pfpImg.classList.add('message-pfp');
-            pfpImg.src = senderProfile.pfp_url;
-            pfpImg.alt = `${messageData.sender_name}'s profile picture`;
-            pfpImg.dataset.userId = messageData.sender_local_user_id; // For clicking on PFP
-            pfpImg.dataset.username = messageData.sender_name; // For clicking on PFP
-            pfpImg.addEventListener('click', (e) => showUserProfileModal(e.target.dataset.userId));
-
-            // Append PFP based on sender
-            if (isSender) {
-                messageWrapper.appendChild(pfpImg);
-            }
-
             const messageElement = document.createElement('div');
             messageElement.classList.add('message');
-            messageElement.dataset.messageId = messageData.id;
+            messageElement.dataset.messageId = messageData.id; // Store message ID for deletion/reply
             messageElement.dataset.senderId = messageData.sender_local_user_id;
+            // Store content and media info in dataset for event delegation to access
             messageElement.dataset.messageContent = messageData.content !== null ? messageData.content : '';
             messageElement.dataset.mediaUrl = messageData.media_url !== null ? messageData.media_url : '';
             messageElement.dataset.mediaType = messageData.media_type !== null ? messageData.media_type : '';
-            messageElement.classList.add(isSender ? 'sent' : 'received');
 
+
+            const isSender = (messageData.sender_local_user_id === localUserId);
+            messageElement.classList.add(isSender ? 'sent' : 'received');
 
             // --- Reply-to content display ---
             if (messageData.replied_to_message_id) {
@@ -778,20 +616,14 @@
                     } else if (!repliedContent) {
                         repliedContent = '[empty message]';
                     }
-                    // Fetch replied-to user's profile for their username
-                    const repliedToProfile = await fetchUserProfile(repliedTo.sender_local_user_id);
-                    replyPreview.innerHTML = `Replying to <strong>${repliedToProfile.username}</strong>: ${repliedContent}`;
+                    replyPreview.innerHTML = `Replying to <strong>${repliedTo.sender_name}</strong>: ${repliedContent}`;
                     messageElement.appendChild(replyPreview);
                 }
             }
 
-            // Clickable Username
-            const usernameSpan = document.createElement('span');
-            usernameSpan.classList.add('username');
-            usernameSpan.textContent = `${senderProfile.username}: `; // Use profile username
-            usernameSpan.dataset.userId = messageData.sender_local_user_id; // Store user ID
-            usernameSpan.addEventListener('click', (e) => showUserProfileModal(e.target.dataset.userId));
-            messageElement.appendChild(usernameSpan);
+            const senderNameStrong = document.createElement('strong');
+            senderNameStrong.textContent = `${messageData.sender_name}: `;
+            messageElement.appendChild(senderNameStrong);
 
             if (messageData.content) {
                 const contentSpan = document.createElement('span');
@@ -815,32 +647,30 @@
             messageElement.appendChild(timestampSpan);
 
             // --- Message Actions (Reply, Delete) ---
-            const actionsDiv = document.createElement('div');
-            actionsDiv.classList.add('message-actions');
+            // Only add actions if the chat is NOT locked
+            if (!currentChatIsLocked) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.classList.add('message-actions');
 
-            // Reply button
-            const replyButton = document.createElement('button');
-            replyButton.textContent = 'Reply';
-            replyButton.classList.add('reply-btn');
-            actionsDiv.appendChild(replyButton);
+                // Reply button
+                const replyButton = document.createElement('button');
+                replyButton.textContent = 'Reply';
+                replyButton.classList.add('reply-btn');
+                actionsDiv.appendChild(replyButton);
 
-            // Delete button (only for sent messages by the current user)
-            if (isSender) {
-                const deleteButton = document.createElement('button');
-                deleteButton.textContent = 'Delete';
-                deleteButton.classList.add('delete-btn');
-                actionsDiv.appendChild(deleteButton);
+                // Delete button (only for sent messages by the current user)
+                if (isSender) {
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.classList.add('delete-btn');
+                    actionsDiv.appendChild(deleteButton);
+                }
+
+                messageElement.appendChild(actionsDiv); // Ensure this is appended
             }
 
-            messageElement.appendChild(actionsDiv);
 
-            messageWrapper.appendChild(messageElement);
-            if (!isSender) { // Append PFP after message for received messages
-                messageWrapper.appendChild(pfpImg);
-                messageWrapper.insertBefore(pfpImg, messageElement); // Ensure PFP comes first for received
-            }
-
-            chatWindow.appendChild(messageWrapper);
+            chatWindow.appendChild(messageElement);
             chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to bottom
         }
 
@@ -849,9 +679,10 @@
          * @param {object} messageData - The message object to reply to.
          */
         async function startReply(messageData) {
+            if (currentChatIsLocked) return; // Prevent replying in locked chats
+
             replyingToMessageId = messageData.id;
-            const repliedToProfile = await fetchUserProfile(messageData.sender_local_user_id);
-            const repliedToSenderName = repliedToProfile.username;
+            const repliedToSenderName = messageData.sender_name;
             let repliedToContent = messageData.content;
 
             if (messageData.media_url) {
@@ -880,6 +711,7 @@
          * @param {string} senderId - The local user ID of the message sender.
          */
         async function deleteMessage(messageId, senderId) {
+            if (currentChatIsLocked) return; // Prevent deleting in locked chats
             if (senderId !== localUserId) { // Basic client-side check to prevent deleting others' messages
                 console.warn('Attempted to delete a message not sent by the current user.');
                 return;
@@ -902,7 +734,7 @@
                 console.log('Message deleted:', messageId);
                 // The real-time subscription will handle removing it from others' UIs
                 // For the sender, we can remove it immediately from the DOM
-                const messageElement = document.querySelector(`.message-wrapper[data-message-id="${messageId}"]`);
+                const messageElement = document.querySelector(`.message[data-message-id="${messageId}"]`);
                 if (messageElement) {
                     messageElement.remove();
                 }
@@ -910,6 +742,7 @@
             }
             setTimeout(() => statusMessageDiv.textContent = '', 3000);
         }
+
 
         /**
          * Loads initial messages for the current chat.
@@ -931,15 +764,13 @@
             } else {
                 chatWindow.innerHTML = ''; // Clear existing messages
                 // Use Promise.all to await all displayMessage calls for reply-to content
-                for (const msg of data) {
-                    await displayMessage(msg);
-                }
-                chatWindow.scrollTop = chatWindow.scrollHeight; // Scroll to bottom after loading all messages
+                await Promise.all(data.map(msg => displayMessage(msg)));
             }
         }
 
         /**
          * Subscribes to real-time changes in the messages table for the current chat.
+         * And subscribes to changes in the group_chats table for 'is_locked' status.
          */
         function subscribeToMessages(chatId) {
             if (realtimeSubscription) {
@@ -953,9 +784,9 @@
                 .on(
                     'postgres_changes',
                     { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
-                    async (payload) => {
+                    (payload) => {
                         console.log('New message received!', payload.new);
-                        await displayMessage(payload.new);
+                        displayMessage(payload.new);
                     }
                 )
                 .on(
@@ -963,9 +794,23 @@
                     { event: 'DELETE', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
                     (payload) => {
                         console.log('Message deleted!', payload.old.id);
-                        const messageElement = document.querySelector(`.message-wrapper[data-message-id="${payload.old.id}"]`);
+                        const messageElement = document.querySelector(`.message[data-message-id="${payload.old.id}"]`);
                         if (messageElement) {
                             messageElement.remove();
+                        }
+                    }
+                )
+                // NEW: Subscribe to chat lock status changes
+                .on(
+                    'postgres_changes',
+                    { event: 'UPDATE', schema: 'public', table: 'group_chats', filter: `id=eq.${chatId}` },
+                    (payload) => {
+                        console.log('Chat status updated!', payload.new);
+                        if (payload.new.is_locked !== undefined) {
+                            currentChatIsLocked = payload.new.is_locked;
+                            updateChatUIBasedOnLockStatus(); // Update UI immediately
+                            // Also refresh sidebar to show lock status
+                            loadUserChats(currentChatId);
                         }
                     }
                 )
@@ -976,8 +821,13 @@
          * Handles sending a new message (text or media).
          */
         async function sendMessage() {
+            if (currentChatIsLocked) { // NEW: Prevent sending if chat is locked
+                statusMessageDiv.textContent = 'This chat is locked and messages cannot be sent.';
+                return;
+            }
+
             if (!localUserId || !username) {
-                statusMessageDiv.textContent = 'Please set your username and profile first.';
+                statusMessageDiv.textContent = 'Please set your username first.';
                 return;
             }
             if (!currentChatId) {
@@ -1024,11 +874,11 @@
             const messageToInsert = {
                 chat_id: currentChatId,
                 sender_local_user_id: localUserId,
-                sender_name: username, // Use current username for the message record
+                sender_name: username,
                 content: messageContent || null, // Send null if only media
                 media_url: mediaUrl || null,
                 media_type: mediaType || null,
-                replied_to_message_id: replyingToMessageId
+                replied_to_message_id: replyingToMessageId // Include reply ID if set
             };
 
             const { error } = await supabase
@@ -1047,17 +897,13 @@
         }
 
         /**
-         * Ensures the user is a participant in the current chat and that their profile exists.
+         * Ensures the user is a participant in the current chat.
          */
-        async function ensureParticipantAndProfile(chatId) {
+        async function ensureParticipant(chatId) {
             if (!localUserId || !username || !chatId) {
                 return;
             }
 
-            // 1. Ensure user profile exists (or create it)
-            await upsertUserProfile(); // This will create/update the profile if necessary
-
-            // 2. Ensure participant entry exists
             const { data, error } = await supabase
                 .from('chat_participants')
                 .select('*')
@@ -1077,7 +923,7 @@
                     .insert({
                         chat_id: chatId,
                         local_user_id: localUserId,
-                        username: username // Use current username from local storage
+                        username: username
                     });
 
                 if (insertError) {
@@ -1087,48 +933,58 @@
                     console.log(`User added to chat participants for chat ${chatId}.`);
                 }
             } else {
-                // If user is already a participant, update their username in chat_participants
-                // in case it changed in their profile
-                const { error: updateError } = await supabase
-                    .from('chat_participants')
-                    .update({ username: username })
-                    .eq('chat_id', chatId)
-                    .eq('local_user_id', localUserId);
-
-                if (updateError) {
-                    console.error('Error updating participant username:', updateError.message);
-                } else {
-                    console.log(`User is already a participant in chat ${chatId}, username updated.`);
-                }
+                console.log(`User is already a participant in chat ${chatId}.`);
             }
         }
 
         /**
-         * Loads chat details (e.g., chat name and description).
+         * Loads chat details (e.g., chat name, description, and is_locked status).
          * @param {string} chatId - The UUID of the chat.
          * @returns {object} The chat data or null if not found/error.
          */
         async function loadChatDetails(chatId) {
             if (!chatId) {
                 chatNameElement.textContent = 'No Chat Selected';
+                currentChatIsLocked = false; // Reset lock status
+                updateChatUIBasedOnLockStatus(); // Update UI
                 return null;
             }
             const { data, error } = await supabase
                 .from('group_chats')
-                .select('name, description')
+                .select('name, description, is_locked') // NEW: Select is_locked
                 .eq('id', chatId)
                 .single();
 
             if (error) {
                 console.error('Error loading chat details:', error.message);
                 chatNameElement.textContent = `Chat ID: ${chatId} (Error)`;
+                currentChatIsLocked = false; // Reset lock status on error
+                updateChatUIBasedOnLockStatus(); // Update UI
                 return null;
             } else if (data) {
                 chatNameElement.textContent = `Chat: ${data.name}`;
+                currentChatIsLocked = data.is_locked; // NEW: Set lock status
+                updateChatUIBasedOnLockStatus(); // NEW: Update UI based on lock status
                 return data;
             } else {
                 chatNameElement.textContent = `Chat ID: ${chatId} (Not Found)`;
+                currentChatIsLocked = false; // Reset lock status if not found
+                updateChatUIBasedOnLockStatus(); // Update UI
                 return null;
+            }
+        }
+
+        /**
+         * NEW: Toggles the visibility of the message input area based on `currentChatIsLocked`.
+         */
+        function updateChatUIBasedOnLockStatus() {
+            if (currentChatIsLocked) {
+                messageInputArea.classList.add('hidden');
+                chatLockedMessage.classList.remove('hidden');
+                clearReply(); // Clear any reply in progress if chat gets locked
+            } else {
+                messageInputArea.classList.remove('hidden');
+                chatLockedMessage.classList.add('hidden');
             }
         }
 
@@ -1143,6 +999,8 @@
             clearReply(); // Clear any pending reply when switching chats
 
             // Update URL hash for the "hashtag link" functionality
+            // This will trigger a hashchange event, which calls initializeApplicationUI,
+            // but the conditional check in initializeApplicationUI will prevent infinite loops.
             window.location.hash = `#chat/${currentChatId}`;
 
             // Visually mark the active chat in the sidebar
@@ -1156,11 +1014,19 @@
             chatWindow.innerHTML = '<p>Loading chat...</p>'; // Show loading state
             statusMessageDiv.textContent = ''; // Clear previous status messages
 
-            await ensureParticipantAndProfile(currentChatId); // Ensure participant and profile are in sync
-            await loadChatDetails(currentChatId);
-            await loadMessages(currentChatId);
-            subscribeToMessages(currentChatId); // Subscribe to new chat's messages
-            console.log(`Switched to chat: ${currentChatId}`);
+            const chatDetails = await loadChatDetails(currentChatId); // Load details including is_locked
+            if (chatDetails) {
+                currentChatIsLocked = chatDetails.is_locked;
+                updateChatUIBasedOnLockStatus(); // Update UI immediately based on current chat's lock status
+            } else {
+                // If chat details can't be loaded, assume not locked or handle error state
+                currentChatIsLocked = false;
+                updateChatUIBasedOnLockStatus();
+            }
+
+            await loadMessages(currentChatId); // Load messages (which now also checks for lock status to add actions)
+            subscribeToMessages(currentChatId); // Subscribe to new chat's messages and its lock status changes
+            console.log(`Switched to chat: ${currentChatId}. Locked status: ${currentChatIsLocked}`);
 
             // On mobile, automatically hide sidebar after selecting a chat
             if (window.innerWidth <= 768) {
@@ -1170,8 +1036,11 @@
             }
         }
 
+
         /**
          * Fetches and displays the list of chats the user is a part of.
+         * This function now takes an optional `chatIdToPrioritize` to ensure the sidebar correctly
+         * highlights and the main chat area shows the chat from the URL hash.
          */
         async function loadUserChats(chatIdToPrioritize = null) {
             if (!localUserId) {
@@ -1195,19 +1064,22 @@
             if (chatIds.length === 0) {
                 chatList.innerHTML = '<li>No chats found. Create one!</li>';
                 chatCountSpan.textContent = '0';
+                // If no chats, ensure no currentChatId is set and unsubscribe
                 currentChatId = null;
+                currentChatIsLocked = false; // Reset lock status
+                updateChatUIBasedOnLockStatus(); // Update UI
                 if (realtimeSubscription) {
                     supabase.removeChannel(realtimeSubscription);
                     realtimeSubscription = null;
                 }
-                loadChatDetails(null);
-                loadMessages(null);
+                loadChatDetails(null); // Clear chat details display
+                loadMessages(null); // Clear messages display
                 return;
             }
 
             const { data: chats, error: chatsError } = await supabase
                 .from('group_chats')
-                .select('id, name')
+                .select('id, name, is_locked') // NEW: Select is_locked
                 .in('id', chatIds)
                 .order('name', { ascending: true });
 
@@ -1219,13 +1091,14 @@
             chatList.innerHTML = '';
             chats.forEach(chat => {
                 const li = document.createElement('li');
-                li.textContent = chat.name;
-                li.dataset.chatId = chat.id;
+                li.textContent = chat.name + (chat.is_locked ? ' (Locked)' : ''); // NEW: Add (Locked) indicator
+                li.dataset.chatId = chat.id; // Store chat ID on the element
                 li.addEventListener('click', () => switchChat(chat.id));
                 chatList.appendChild(li);
             });
             chatCountSpan.textContent = chats.length;
 
+            // Determine which chat to display: prioritize `chatIdToPrioritize`, then `currentChatId`, then first in list
             let targetChatId = null;
             if (chatIdToPrioritize && chats.some(chat => chat.id === chatIdToPrioritize)) {
                 targetChatId = chatIdToPrioritize;
@@ -1238,7 +1111,10 @@
             if (targetChatId) {
                 await switchChat(targetChatId);
             } else {
+                // If no target chat, clear current chat view
                 currentChatId = null;
+                currentChatIsLocked = false; // Reset lock status
+                updateChatUIBasedOnLockStatus(); // Update UI
                 loadChatDetails(null);
                 loadMessages(null);
                 if (realtimeSubscription) {
@@ -1260,7 +1136,7 @@
                 return;
             }
             if (!localUserId || !username) {
-                createChatStatusDiv.textContent = 'Please set your username and profile first.';
+                createChatStatusDiv.textContent = 'Please set your username first.';
                 return;
             }
 
@@ -1268,25 +1144,31 @@
             try {
                 const { data, error } = await supabase
                     .from('group_chats')
-                    .insert({ name: chatName, description: chatDescription || null })
-                    .select('id');
+                    .insert({ name: chatName, description: chatDescription || null, is_locked: false }) // NEW: Default to not locked
+                    .select('id'); // Select the ID of the newly created chat
 
                 if (error) throw error;
 
                 const newChatId = data[0].id;
                 console.log('New chat created with ID:', newChatId);
 
-                await ensureParticipantAndProfile(newChatId); // Add creator as participant
+                // Automatically add the creator as a participant
+                const { error: participantError } = await supabase
+                    .from('chat_participants')
+                    .insert({ chat_id: newChatId, local_user_id: localUserId, username: username });
+
+                if (participantError) throw participantError;
 
                 createChatStatusDiv.textContent = `Chat created! Link: ${window.location.origin}/#chat/${newChatId}`;
                 newChatNameInput.value = '';
                 newChatDescriptionInput.value = '';
 
-                await loadUserChats(newChatId);
+                await loadUserChats(newChatId); // Refresh chat list and immediately switch to the new chat
                 
+                // Close modal after a short delay
                 setTimeout(() => {
                     createChatModal.style.display = 'none';
-                    createChatStatusDiv.textContent = '';
+                    createChatStatusDiv.textContent = ''; // Clear status for next time
                 }, 3000);
 
             } catch (error) {
@@ -1300,24 +1182,26 @@
          * @param {string} chatId - The UUID of the chat to preview.
          */
         async function showJoinChatUI(chatId) {
+            // Hide other UIs
             usernameSetupDiv.classList.add('hidden');
             chatInterfaceDiv.classList.add('hidden');
-            sidebar.classList.add('hidden');
-            sidebarToggle.classList.add('hidden');
-            profileEditModal.classList.add('hidden'); // Ensure profile modal is hidden
-            userProfileModal.classList.add('hidden'); // Ensure user profile modal is hidden
+            sidebar.classList.add('hidden'); // Hide sidebar in join preview
+            sidebarToggle.classList.add('hidden'); // Hide toggle button
 
+            // Show join preview UI
             joinChatPreviewDiv.classList.remove('hidden');
-            joinChatStatusDiv.textContent = '';
+            joinChatStatusDiv.textContent = ''; // Clear previous status
 
             const chatDetails = await loadChatDetails(chatId);
             if (chatDetails) {
                 joinChatPreviewName.textContent = chatDetails.name;
                 joinChatPreviewDescription.textContent = chatDetails.description || 'No description provided.';
-                joinChatPreviewButton.dataset.chatIdToJoin = chatId;
+                joinChatPreviewButton.dataset.chatIdToJoin = chatId; // Store chat ID for join button
             } else {
+                // If chat not found or error loading, revert to username setup or default chat view
                 joinChatPreviewDiv.classList.add('hidden');
-                await initializeApplicationUI(null);
+                // Re-initialize to determine the correct default view (username setup or user's chats)
+                await initializeApplicationUI(null); // Pass null to avoid re-processing a bad URL hash
                 statusMessageDiv.textContent = 'Group chat not found or accessible. Please check the link.';
             }
         }
@@ -1328,19 +1212,22 @@
          */
         async function joinChatFromLink(chatId) {
             if (!localUserId || !username) {
-                joinChatStatusDiv.textContent = 'Please set your username and profile first to join.';
+                joinChatStatusDiv.textContent = 'Please set your username first to join.';
                 return;
             }
 
             joinChatStatusDiv.textContent = 'Joining chat...';
             try {
-                await ensureParticipantAndProfile(chatId);
+                await ensureParticipant(chatId); // This adds them if they're not already in
 
+                // After joining, transition to the main chat interface
                 joinChatPreviewDiv.classList.add('hidden');
                 chatInterfaceDiv.classList.remove('hidden');
-                statusMessageDiv.textContent = '';
+                statusMessageDiv.textContent = ''; // Clear status
 
-                await loadUserChats(chatId);
+                // Refresh sidebar to include the new chat and auto-switch to it
+                // loadUserChats will call switchChat internally for the correct chat
+                await loadUserChats(chatId); // Pass the newly joined chat ID to prioritize it
                 console.log(`Successfully joined chat ${chatId}`);
 
             } catch (error) {
@@ -1350,181 +1237,6 @@
         }
 
 
-        // --- Profile Management Functions (NEW) ---
-
-        /**
-         * Opens the profile edit modal and populates it with current user data.
-         */
-        async function openProfileEditModal() {
-            if (!localUserId) {
-                profileStatusDiv.textContent = "Please set your username first.";
-                usernameSetupDiv.classList.remove('hidden');
-                chatInterfaceDiv.classList.add('hidden');
-                return;
-            }
-
-            profileEditModal.style.display = 'flex';
-            profileStatusDiv.textContent = ''; // Clear previous status
-
-            const profile = await fetchUserProfile(localUserId);
-            profileUsernameInput.value = username; // Always use local username as primary
-            profileBioInput.value = profile.bio === 'N/A' ? '' : profile.bio;
-            profilePfpPreview.src = userPfpUrl; // Use local PFP URL
-
-            // Ensure the local storage values are up to date for the profile fields
-            localStorage.setItem('username', username);
-            localStorage.setItem('userBio', profileBioInput.value);
-            localStorage.setItem('userPfpUrl', userPfpUrl);
-        }
-
-        /**
-         * Handles profile picture upload.
-         */
-        profilePfpUploadInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            profileStatusDiv.textContent = 'Uploading profile picture...';
-            try {
-                // Delete old PFP if it's not the default
-                if (userPfpUrl && userPfpUrl !== 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png' && userPfpUrl.includes('profilepictures')) {
-                    const oldFilePath = userPfpUrl.split('/profilepictures/')[1];
-                    const { error: deleteError } = await supabase.storage
-                        .from('profilepictures')
-                        .remove([oldFilePath]);
-                    if (deleteError) {
-                        console.warn('Error deleting old profile picture:', deleteError.message);
-                    } else {
-                        console.log('Old profile picture deleted.');
-                    }
-                }
-
-                const filePath = `${localUserId}/${Date.now()}_${file.name}`;
-                const { data, error } = await supabase.storage
-                    .from('profilepictures')
-                    .upload(filePath, file);
-
-                if (error) throw error;
-
-                const { data: publicUrlData } = supabase.storage
-                    .from('profilepictures')
-                    .getPublicUrl(filePath);
-
-                userPfpUrl = publicUrlData.publicUrl;
-                profilePfpPreview.src = userPfpUrl; // Update preview
-                localStorage.setItem('userPfpUrl', userPfpUrl);
-                profileStatusDiv.textContent = 'Profile picture uploaded! Click save.';
-                console.log('New PFP URL:', userPfpUrl);
-            } catch (error) {
-                console.error('Error uploading profile picture:', error.message);
-                profileStatusDiv.textContent = `Error uploading PFP: ${error.message}`;
-            }
-        });
-
-
-        /**
-         * Saves the updated profile (username, bio, pfp URL) to Supabase.
-         */
-        async function saveProfile() {
-            const newUsername = profileUsernameInput.value.trim();
-            const newBio = profileBioInput.value.trim();
-
-            if (!newUsername) {
-                profileStatusDiv.textContent = 'Username is required.';
-                return;
-            }
-
-            profileStatusDiv.textContent = 'Saving profile...';
-
-            const profileData = {
-                local_user_id: localUserId,
-                username: newUsername,
-                bio: newBio || null, // Store null if bio is empty
-                pfp_url: userPfpUrl || null // Store null if pfp is empty/default
-            };
-
-            // Use upsert to insert if not exists, or update if exists
-            const { error } = await supabase
-                .from('profiles')
-                .upsert(profileData, { onConflict: 'local_user_id' });
-
-            if (error) {
-                console.error('Error saving profile:', error.message);
-                profileStatusDiv.textContent = `Error saving profile: ${error.message}`;
-            } else {
-                username = newUsername; // Update global username
-                userBio = newBio; // Update global bio
-                localStorage.setItem('username', username);
-                localStorage.setItem('userBio', userBio);
-                localStorage.setItem('userPfpUrl', userPfpUrl); // Ensure PFP URL is persisted
-                
-                // Invalidate cache for current user
-                delete userProfilesCache[localUserId];
-                // Refresh our own cached data
-                await fetchUserProfile(localUserId);
-
-                profileStatusDiv.textContent = 'Profile saved successfully!';
-                console.log('Profile saved:', { username, userBio, userPfpUrl });
-
-                // Update chat participant entry's username for current chat
-                if (currentChatId) {
-                    await ensureParticipantAndProfile(currentChatId); // This will update the username in chat_participants
-                }
-                
-                setTimeout(() => {
-                    profileEditModal.style.display = 'none';
-                    profileStatusDiv.textContent = '';
-                }, 1500); // Close modal after 1.5 seconds
-            }
-        }
-
-        /**
-         * Ensures the user's profile exists in the `profiles` table upon initial setup or if it's missing.
-         */
-        async function upsertUserProfile() {
-            if (!localUserId || !username) {
-                console.warn("Cannot upsert profile: localUserId or username missing.");
-                return;
-            }
-
-            const profileData = {
-                local_user_id: localUserId,
-                username: username,
-                bio: userBio || null,
-                pfp_url: userPfpUrl || null
-            };
-
-            const { error } = await supabase
-                .from('profiles')
-                .upsert(profileData, { onConflict: 'local_user_id' });
-
-            if (error) {
-                console.error('Error upserting user profile:', error.message);
-            } else {
-                console.log('User profile ensured/updated in DB.');
-                // Refresh our own cached data
-                delete userProfilesCache[localUserId];
-                await fetchUserProfile(localUserId);
-            }
-        }
-
-
-        /**
-         * Shows the user profile mini-menu modal.
-         * @param {string} userId - The local_user_id of the user to display.
-         */
-        async function showUserProfileModal(userId) {
-            userProfileModal.style.display = 'flex';
-            userProfileModalStatus.textContent = 'Loading profile...';
-
-            const profile = await fetchUserProfile(userId);
-
-            userProfileModalPfp.src = profile.pfp_url;
-            userProfileModalUsername.textContent = profile.username;
-            userProfileModalBio.textContent = profile.bio === 'N/A' ? 'No bio provided.' : profile.bio;
-            userProfileModalStatus.textContent = '';
-        }
-
         // --- Event Listeners ---
 
         // Set Username button click
@@ -1532,11 +1244,17 @@
             const enteredUsername = usernameInput.value.trim();
             if (enteredUsername) {
                 username = enteredUsername;
-                // localUserId will be generated/retained in initializeApplicationUI
-                usernameStatusDiv.textContent = '';
+                localStorage.setItem('username', username);
+
+                if (!localUserId) {
+                    localUserId = generateUUID();
+                    localStorage.setItem('localUserId', localUserId);
+                }
+
+                // Call the unified initialization flow
                 await initializeApplicationUI();
             } else {
-                usernameStatusDiv.textContent = 'Please enter a username.';
+                statusMessageDiv.textContent = 'Please enter a username.';
             }
         });
 
@@ -1559,7 +1277,7 @@
         // Sidebar toggle
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('hidden');
-            sidebar.classList.toggle('active');
+            sidebar.classList.toggle('active'); /* Add/remove active class for mobile */
             sidebarToggle.classList.toggle('active');
         });
 
@@ -1568,8 +1286,8 @@
             createChatModal.style.display = 'flex';
         });
 
-        // Close Create Chat modal button
-        closeCreateChatButton.addEventListener('click', () => {
+        // Close modal button
+        closeButton.addEventListener('click', () => {
             createChatModal.style.display = 'none';
             newChatNameInput.value = '';
             newChatDescriptionInput.value = '';
@@ -1587,43 +1305,25 @@
             }
         });
 
-        // My Profile button (opens profile edit modal)
-        myProfileButton.addEventListener('click', openProfileEditModal);
-
-        // Profile Edit Modal close button
-        closeProfileModalButton.addEventListener('click', () => {
-            profileEditModal.style.display = 'none';
-            profileStatusDiv.textContent = '';
-            profilePfpUploadInput.value = ''; // Clear file input
-        });
-
-        // Profile Picture Upload Button click
-        profileUploadButton.addEventListener('click', () => {
-            profilePfpUploadInput.click();
-        });
-
-        // Save Profile Button click
-        saveProfileButton.addEventListener('click', saveProfile);
-
-        // User Profile Mini-Menu Modal close button
-        closeUserProfileModalButton.addEventListener('click', () => {
-            userProfileModal.style.display = 'none';
-        });
-
-        // Event Delegation for Message Actions (Reply and Delete)
+        // NEW: Event Delegation for Message Actions (Reply and Delete)
         chatWindow.addEventListener('click', async (event) => {
+            // Only allow actions if the chat is NOT locked
+            if (currentChatIsLocked) return;
+
             const target = event.target;
 
             // Handle Reply Button
             if (target.classList.contains('reply-btn')) {
                 const messageElement = target.closest('.message');
                 if (messageElement) {
+                    // Reconstruct messageData from dataset attributes
                     const messageData = {
                         id: messageElement.dataset.messageId,
-                        sender_local_user_id: messageElement.dataset.senderId,
+                        sender_name: messageElement.querySelector('strong') ? messageElement.querySelector('strong').textContent.replace(': ', '') : 'Unknown Sender', // Robust handling for sender name
                         content: messageElement.dataset.messageContent !== '' ? messageElement.dataset.messageContent : null,
                         media_url: messageElement.dataset.mediaUrl !== '' ? messageElement.dataset.mediaUrl : null,
                         media_type: messageElement.dataset.mediaType !== '' ? messageElement.dataset.mediaType : null,
+                        sender_local_user_id: messageElement.dataset.senderId
                     };
                     startReply(messageData);
                 }
@@ -1640,7 +1340,9 @@
             }
         });
 
+
         // --- Main Application Initialization Logic ---
+        // This function orchestrates which UI is shown on load/username set/hashchange
         async function initializeApplicationUI() {
             console.log("initializeApplicationUI called. Current hash:", window.location.hash);
 
@@ -1663,11 +1365,10 @@
                     sidebarToggle.classList.remove('active');
                 }
 
-                // Ensure the current user's profile exists in the DB
-                await upsertUserProfile();
 
                 if (urlChatId) {
                     console.log("URL has chat ID. Checking participation...");
+                    // Check if already a participant of this URL chat
                     const { data: participantCheck, error: participantError } = await supabase
                         .from('chat_participants')
                         .select('*')
@@ -1676,52 +1377,42 @@
 
                     if (participantError) {
                         console.error('Error checking participant status for URL chat:', participantError.message);
+                        // If there's an error checking, show join UI (might be an invalid ID or RLS issue)
                         chatInterfaceDiv.classList.add('hidden');
                         await showJoinChatUI(urlChatId);
                     } else if (participantCheck && participantCheck.length > 0) {
                         console.log("User is already a participant. Switching to chat.");
+                        // Already a participant, switch to this chat directly
                         chatInterfaceDiv.classList.remove('hidden');
-                        joinChatPreviewDiv.classList.add('hidden');
-                        await loadUserChats(urlChatId);
+                        joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
+                        await loadUserChats(urlChatId); // Load chats and prioritize the URL chat
                     } else {
                         console.log("User is NOT a participant. Showing join UI.");
+                        // Not a participant, show join UI
                         chatInterfaceDiv.classList.add('hidden');
                         await showJoinChatUI(urlChatId);
                     }
                 } else {
                     console.log("No URL chat ID. Loading user's existing chats.");
+                    // No URL chat ID, just load user's existing chats
                     chatInterfaceDiv.classList.remove('hidden');
-                    joinChatPreviewDiv.classList.add('hidden');
+                    joinChatPreviewDiv.classList.add('hidden'); // Ensure join preview is hidden
                     await loadUserChats();
                 }
             } else {
-                console.log("User needs to set username and generate ID.");
+                console.log("User needs to set username.");
+                // User needs to set username, username setup remains visible
                 usernameSetupDiv.classList.remove('hidden'); // Ensure username setup is visible
-                chatInterfaceDiv.classList.add('hidden');
-                joinChatPreviewDiv.classList.add('hidden');
-                sidebar.classList.add('hidden');
-                sidebarToggle.classList.add('hidden');
-                
-                // If localUserId or username is missing, generate a new ID if needed
-                if (!localUserId) {
-                    localUserId = generateUUID();
-                    localStorage.setItem('localUserId', localUserId);
-                    console.log("New localUserId generated:", localUserId);
-                }
-                // Pre-fill username input if there's a stored one (even if incomplete setup)
-                usernameInput.value = localStorage.getItem('username') || '';
+                chatInterfaceDiv.classList.add('hidden'); // Hide chat interface
+                joinChatPreviewDiv.classList.add('hidden'); // Hide join preview
+                sidebar.classList.add('hidden'); // Hide sidebar
+                sidebarToggle.classList.add('hidden'); // Hide toggle button
             }
         }
 
 
         // --- Run on DOM Content Loaded & Hash Change ---
         document.addEventListener('DOMContentLoaded', async () => {
-            // Check for initial username and ID
-            localUserId = localStorage.getItem('localUserId');
-            username = localStorage.getItem('username');
-            userPfpUrl = localStorage.getItem('userPfpUrl') || 'https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/default_pfp.png';
-            userBio = localStorage.getItem('userBio') || '';
-
             await initializeApplicationUI();
         });
 
