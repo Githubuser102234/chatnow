@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <head>
+        <title>Chatvana - Public Chat Platform (View-Only)</title>
+        <link rel="icon" href="https://cdn.chatvana.xyz/cdn/CBD9BEEA-A467-4A01-A2FE-F09689DCCBE5.png" type="image/png">
+        <meta name="description" content="Chatvana is a real-time chat platform with public rooms and more (view-only).">
+        <meta name="keywords" content="Chatvana, chat app, public chat, messaging platform, view only">
+        <meta name="author" content="ChatVana team">
+        <meta name="robots" content="index, follow">
+    </head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ChatVana">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Githubuser102234/Chatvanacdn/refs/heads/main/cdn/CBD9BEEA-A467-4A01-A2FE-F09689DCCBE5.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatVana - Chats (View-Only)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            position: relative; /* Needed for sidebar positioning */
+        }
+
+        /* Sidebar Styles */
+        #sidebar {
+            width: 250px;
+            background-color: #2c3e50; /* Dark blue/grey */
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1000;
+            transition: transform 0.3s ease-in-out;
+        }
+        #sidebar.hidden {
+            transform: translateX(-100%);
+            position: absolute; /* Hide completely when collapsed */
+        }
+        #sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            left: calc(100% + 10px); /* Position outside sidebar */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 1001; /* Ensure it's above other content */
+        }
+        #sidebar-toggle.active {
+            background-color: #dc3545; /* Red when open, indicating "close" */
+        }
+        #sidebar h3 { margin-top: 0; color: #ecf0f1; }
+        #chat-list { list-style: none; padding: 0; flex-grow: 1; overflow-y: auto; }
+        #chat-list li { margin-bottom: 10px; cursor: pointer; padding: 8px; border-radius: 4px; transition: background-color 0.2s; }
+        #chat-list li:hover { background-color: #34495e; }
+        #chat-list li.active { background-color: #007bff; font-weight: bold; }
+        /* Hide the create chat button */
+        #create-chat-button { display: none; }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            width: calc(100% - 250px); /* Account for sidebar width on desktop */
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat-window {
+            border: 1px solid #ddd;
+            height: 400px; /* Fixed height for scroll */
+            flex-grow: 1; /* Allow it to grow in the column flex */
+            overflow-y: scroll;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 70%;
+            word-wrap: break-word;
+            position: relative;
+            /* Added padding-bottom to make space for actions */
+            padding-bottom: 10px; /* Reduced as no actions are displayed */
+        }
+        .message.sent { background-color: #dcf8c6; float: right; clear: both; }
+        .message.received { background-color: #ffffff; float: left; clear: both; border: 1px solid #eee; }
+        .message strong { color: #075e54; }
+        .message .timestamp { font-size: 0.75em; color: #777; display: block; text-align: right; margin-top: 5px; }
+        .message img, .message video { max-width: 100%; height: auto; border-radius: 5px; margin-top: 5px; display: block; }
+
+        /* Hide all action buttons for view-only */
+        .message .message-actions { display: none; }
+        .reply-preview-area { display: none; }
+        #message-input-area { display: none; } /* Hide input area */
+
+        /* Hide username setup and join preview */
+        #username-setup, #join-chat-preview { display: none !important; }
+        .hidden { display: none; }
+
+        /* Modal for Create Chat (hide completely) */
+        .modal { display: none !important; }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column; /* Stack elements vertically */
+            }
+
+            #sidebar {
+                position: fixed; /* Make sidebar fixed to overlay content */
+                top: 0;
+                left: 0;
+                width: 75%; /* Occupy most of the screen width */
+                height: 100vh;
+                padding: 15px;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+                transform: translateX(-100%); /* Start hidden */
+            }
+            #sidebar.hidden {
+                transform: translateX(-100%); /* Keep hidden state */
+            }
+            #sidebar.active { /* Use 'active' class to show sidebar */
+                transform: translateX(0);
+            }
+
+            #sidebar-toggle {
+                position: fixed; /* Fixed position for toggle button */
+                top: 15px;
+                left: 15px; /* Position inside main content area */
+                z-index: 1002; /* Above sidebar */
+                padding: 8px 12px;
+            }
+            #sidebar-toggle.active {
+                left: calc(75% + 15px); /* Move toggle when sidebar is open */
+                background-color: #dc3545; /* Red to indicate "close" */
+            }
+
+            .main-content {
+                padding: 10px; /* Reduced padding for smaller screens */
+                width: 100%; /* Take full width */
+                box-sizing: border-box; /* Include padding in width calculation */
+            }
+            .container {
+                padding: 10px; /* Reduced padding for smaller screens */
+                border-radius: 0; /* Remove border-radius for full width feel */
+                box-shadow: none; /* Remove shadow to blend better */
+                height: 100%; /* Occupy full height */
+                justify-content: space-between; /* Push input to bottom */
+                box-sizing: border-box; /* Include padding in width calculation */
+                max-width: 100%; /* Ensure it doesn't try to be too wide */
+            }
+
+            #chat-window {
+                height: calc(100vh - 100px); /* Adjusted height to fit screen, more space as no input */
+                margin-bottom: 10px;
+                padding: 8px; /* Slightly reduced padding */
+            }
+
+            .message {
+                max-width: 90%; /* Allow messages to take more width */
+                font-size: 0.9em;
+                padding: 6px 10px; /* Slightly reduced padding */
+                padding-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="sidebar-toggle">Toggle Sidebar</button>
+
+    <div id="sidebar" class="hidden">
+        <h3>Public Group Chats (<span id="chat-count">0</span>)</h3>
+        <ul id="chat-list">
+            </ul>
+        <button id="create-chat-button" style="display: none;">Create New Chat</button> </div>
+
+    <div class="main-content">
+        <div class="container">
+            <h1>Welcome to ChatVana (View-Only)</h1>
+
+            <div id="username-setup" class="hidden"></div>
+            <div id="join-chat-preview" class="hidden"></div>
+
+            <div id="chat-interface">
+                <h2 id="chat-name"></h2>
+                <div id="chat-window">
+                    </div>
+                <div id="message-input-area" class="hidden">
+                    <div id="reply-preview-area" class="hidden">
+                        <span id="reply-to-content"></span>
+                        <button class="close-reply">&times;</button>
+                    </div>
+                    <div id="message-input-container">
+                        <input type="text" id="message-input" placeholder="Typing is disabled in view-only mode..." disabled>
+                        <input type="file" id="media-upload" accept="image/*,video/*" class="hidden" disabled>
+                        <button id="media-button" disabled>Attach Media</button>
+                        <button id="send-button" disabled>Send</button>
+                    </div>
+                </div>
+                <div id="status-message" style="color: red; margin-top: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-chat-modal" class="modal hidden"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+        // Supabase client instance
+        // Ensure you replace with your ACTUAL Supabase URL and ANON KEY
+        const supabase = createClient(
+            'https://ahsrsrkzmphbhecishuc.supabase.co', // Your Supabase Project URL
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoc3Jzcmt6bXBoYmhlY2lzaHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NjEwODAsImV4cCI6MjA2NzMzNzA4MH0.CI0EQak2VQJi883JkdtD01XQpvKq8lfXoq4PsvGiapA' // Your Supabase Anon Key
+        );
+        console.log("Supabase client initialized via module import for view-only mode.");
+
+        // --- DOM Elements (some will remain hidden by CSS/JS) ---
+        const chatInterfaceDiv = document.getElementById('chat-interface');
+        const chatNameElement = document.getElementById('chat-name');
+        const chatWindow = document.getElementById('chat-window');
+        const statusMessageDiv = document.getElementById('status-message');
+
+        // Sidebar elements
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const chatCountSpan = document.getElementById('chat-count');
+        const chatList = document.getElementById('chat-list');
+
+        // --- Global Variables (for client-side user and chat data) ---
+        // For view-only, we don't need persistent user data from localStorage.
+        // We'll use a placeholder "viewer" ID and name.
+        let localUserId = 'viewer-id-123'; // Static ID for view-only context
+        let username = 'Viewer'; // Static username for view-only context
+        let currentChatId = null;
+        let realtimeSubscription = null;
+
+        // --- Helper Functions ---
+
+        /**
+         * Fetches a single message's details (needed for reply context, though reply isn't interactive).
+         * @param {string} messageId - The ID of the message to fetch.
+         * @returns {object} The message data or null if not found/error.
+         */
+        async function getMessageDetails(messageId) {
+            if (!messageId) return null;
+            const { data, error } = await supabase
+                .from('messages')
+                .select('sender_name, content, media_url, media_type')
+                .eq('id', messageId)
+                .single();
+
+            if (error) {
+                console.error('Error fetching message details:', error.message);
+                return null;
+            }
+            return data;
+        }
+
+        /**
+         * Displays a message in the chat window.
+         * @param {object} messageData - The message object from Supabase.
+         */
+        async function displayMessage(messageData) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.dataset.messageId = messageData.id;
+            messageElement.dataset.senderId = messageData.sender_local_user_id;
+
+            // For view-only, all messages are effectively "received" by the viewer.
+            // We can still differentiate by sender_local_user_id if you want to highlight messages from the 'viewer's' perspective.
+            // However, since localUserId is static, messages from this "viewer" won't appear.
+            const isSender = (messageData.sender_local_user_id === localUserId); // This will always be false unless a message was literally sent by 'viewer-id-123'
+            messageElement.classList.add(isSender ? 'sent' : 'received');
+
+            // --- Reply-to content display ---
+            if (messageData.replied_to_message_id) {
+                const repliedTo = await getMessageDetails(messageData.replied_to_message_id);
+                if (repliedTo) {
+                    const replyPreview = document.createElement('div');
+                    replyPreview.classList.add('reply-preview');
+                    let repliedContent = repliedTo.content;
+                    if (repliedTo.media_url) {
+                        repliedContent = '[attachment]';
+                    } else if (!repliedContent) {
+                        repliedContent = '[empty message]';
+                    }
+                    replyPreview.innerHTML = `Replying to <strong>${repliedTo.sender_name}</strong>: ${repliedContent}`;
+                    messageElement.appendChild(replyPreview);
+                }
+            }
+
+            const senderNameStrong = document.createElement('strong');
+            senderNameStrong.textContent = `${messageData.sender_name}: `;
+            messageElement.appendChild(senderNameStrong);
+
+            if (messageData.content) {
+                const contentSpan = document.createElement('span');
+                contentSpan.textContent = messageData.content;
+                messageElement.appendChild(contentSpan);
+            }
+
+            if (messageData.media_url) {
+                const mediaElement = document.createElement(messageData.media_type.startsWith('image') ? 'img' : 'video');
+                mediaElement.src = messageData.media_url;
+                mediaElement.alt = 'Shared Media';
+                if (messageData.media_type.startsWith('video')) {
+                    mediaElement.controls = true;
+                }
+                messageElement.appendChild(mediaElement);
+            }
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.classList.add('timestamp');
+            timestampSpan.textContent = new Date(messageData.created_at).toLocaleTimeString();
+            messageElement.appendChild(timestampSpan);
+
+            // Message actions (reply/delete) are hidden by CSS. No need to create them.
+
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to bottom
+        }
+
+        /**
+         * Loads initial messages for the current chat.
+         */
+        async function loadMessages(chatId) {
+            if (!chatId) {
+                chatWindow.innerHTML = '<p>Select a chat from the sidebar to view messages.</p>';
+                return;
+            }
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('chat_id', chatId)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Error loading messages:', error.message);
+                statusMessageDiv.textContent = `Error loading messages: ${error.message}`;
+            } else {
+                chatWindow.innerHTML = ''; // Clear existing messages
+                await Promise.all(data.map(msg => displayMessage(msg)));
+            }
+        }
+
+        /**
+         * Subscribes to real-time changes in the messages table for the current chat.
+         */
+        function subscribeToMessages(chatId) {
+            if (realtimeSubscription) {
+                supabase.removeChannel(realtimeSubscription); // Unsubscribe from previous channel
+            }
+
+            if (!chatId) return; // Don't subscribe if no chat is selected
+
+            realtimeSubscription = supabase
+                .channel(`chat_room_${chatId}`) // Unique channel per chat
+                .on(
+                    'postgres_changes',
+                    { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+                    (payload) => {
+                        console.log('New message received!', payload.new);
+                        displayMessage(payload.new);
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    { event: 'DELETE', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+                    (payload) => {
+                        console.log('Message deleted!', payload.old.id);
+                        const messageElement = document.querySelector(`.message[data-message-id="${payload.old.id}"]`);
+                        if (messageElement) {
+                            messageElement.remove();
+                        }
+                    }
+                )
+                .subscribe();
+            console.log(`Subscribed to real-time updates for chat: ${chatId}`);
+        }
+
+        /**
+         * Loads chat details (e.g., chat name and description).
+         * @param {string} chatId - The UUID of the chat.
+         * @returns {object} The chat data or null if not found/error.
+         */
+        async function loadChatDetails(chatId) {
+            if (!chatId) {
+                chatNameElement.textContent = 'No Chat Selected';
+                return null;
+            }
+            const { data, error } = await supabase
+                .from('group_chats')
+                .select('name, description')
+                .eq('id', chatId)
+                .single();
+
+            if (error) {
+                console.error('Error loading chat details:', error.message);
+                chatNameElement.textContent = `Chat ID: ${chatId} (Error)`;
+                return null;
+            } else if (data) {
+                chatNameElement.textContent = `Chat: ${data.name}`;
+                return data;
+            } else {
+                chatNameElement.textContent = `Chat ID: ${chatId} (Not Found)`;
+                return null;
+            }
+        }
+
+        /**
+         * Handles switching to a new chat.
+         * @param {string} newChatId - The UUID of the chat to switch to.
+         */
+        async function switchChat(newChatId) {
+            if (newChatId === currentChatId) return;
+
+            currentChatId = newChatId;
+            window.location.hash = `#chat/${currentChatId}`; // Update URL hash
+
+            document.querySelectorAll('#chat-list li').forEach(li => {
+                li.classList.remove('active');
+                if (li.dataset.chatId === newChatId) {
+                    li.classList.add('active');
+                }
+            });
+
+            chatWindow.innerHTML = '<p>Loading chat...</p>';
+            statusMessageDiv.textContent = '';
+
+            await loadChatDetails(currentChatId);
+            await loadMessages(currentChatId);
+            subscribeToMessages(currentChatId);
+            console.log(`Switched to chat: ${currentChatId}`);
+
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
+                sidebar.classList.add('hidden');
+                sidebarToggle.classList.remove('active');
+            }
+        }
+
+        /**
+         * Fetches and displays the list of chats.
+         */
+        async function loadAllPublicChats(chatIdToPrioritize = null) {
+            // For view-only, we fetch all chats that are public (if you add a 'is_public' column to group_chats)
+            // Or just all chats, if you assume all chats created are public for viewing.
+            const { data: chats, error: chatsError } = await supabase
+                .from('group_chats')
+                .select('id, name')
+                .order('name', { ascending: true }); // Order alphabetically
+
+            if (chatsError) {
+                console.error('Error fetching public chats:', chatsError.message);
+                chatList.innerHTML = '<li>Error loading chats.</li>';
+                return;
+            }
+
+            if (chats.length === 0) {
+                chatList.innerHTML = '<li>No public chats available.</li>';
+                chatCountSpan.textContent = '0';
+                currentChatId = null;
+                if (realtimeSubscription) {
+                    supabase.removeChannel(realtimeSubscription);
+                    realtimeSubscription = null;
+                }
+                loadChatDetails(null);
+                loadMessages(null);
+                return;
+            }
+
+            chatList.innerHTML = '';
+            chats.forEach(chat => {
+                const li = document.createElement('li');
+                li.textContent = chat.name;
+                li.dataset.chatId = chat.id;
+                li.addEventListener('click', () => switchChat(chat.id));
+                chatList.appendChild(li);
+            });
+            chatCountSpan.textContent = chats.length;
+
+            let targetChatId = null;
+            if (chatIdToPrioritize && chats.some(chat => chat.id === chatIdToPrioritize)) {
+                targetChatId = chatIdToPrioritize;
+            } else if (currentChatId && chats.some(chat => chat.id === currentChatId)) {
+                targetChatId = currentChatId;
+            } else if (chats.length > 0) {
+                targetChatId = chats[0].id;
+            }
+
+            if (targetChatId) {
+                await switchChat(targetChatId);
+            } else {
+                currentChatId = null;
+                loadChatDetails(null);
+                loadMessages(null);
+                if (realtimeSubscription) {
+                    supabase.removeChannel(realtimeSubscription);
+                    realtimeSubscription = null;
+                }
+            }
+        }
+
+        // --- Event Listeners ---
+
+        // Sidebar toggle
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            sidebar.classList.toggle('active');
+            sidebarToggle.classList.toggle('active');
+        });
+
+        // --- Main Application Initialization Logic ---
+        async function initializeApplicationUI() {
+            console.log("initializeApplicationUI called for view-only mode. Current hash:", window.location.hash);
+
+            document.querySelector('.container').style.display = 'flex';
+            document.querySelector('.container').style.flexDirection = 'column';
+
+            const urlChatId = window.location.hash.startsWith('#chat/') ? window.location.hash.substring(6) : null;
+
+            // In view-only mode, we always show the chat interface
+            chatInterfaceDiv.classList.remove('hidden');
+            sidebar.classList.remove('hidden');
+            sidebarToggle.classList.remove('hidden');
+
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
+                sidebar.classList.add('hidden');
+                sidebarToggle.classList.remove('active');
+            }
+
+            await loadAllPublicChats(urlChatId);
+        }
+
+        // --- Run on DOM Content Loaded & Hash Change ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeApplicationUI();
+        });
+
+        window.addEventListener('hashchange', async () => {
+            console.log("URL hash changed. Re-initializing UI.");
+            await initializeApplicationUI();
+        });
+    </script>
+</body>
+</html>
